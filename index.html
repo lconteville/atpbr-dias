@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conversor de Datas em Dias ATPBR</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+<header class="header">
+  <div class="header-content">
+    <div class="header-text">
+      <h1>Conversor de Datas em Dias</h1>
+      <p class="subtitle">Atlas Tumoral da População Brasileira</p>
+    </div>
+    <img src="img/logo_atpbr_cortada.png" alt="Logo ATPBR" class="logo">
+  </div>
+</header>
+
+<main class="container">
+
+  <!-- ====== Aviso de privacidade ====== -->
+  <section class="card aviso">
+    <h2>🔒 Por que o ATPBR não recebe datas</h2>
+    <p>
+      A plataforma do <strong>Atlas Tumoral da População Brasileira (ATPBR)</strong>
+      <strong>não coleta nenhuma data relacionada ao paciente ou à amostra</strong>: não há campos de
+      data de nascimento, data de diagnóstico, data de coleta ou data de óbito.
+    </p>
+    <p>
+      Datas civis são identificadores indiretos. Combinadas entre si, ou com sexo, município e tipo de
+      neoplasia, elas permitem <strong>reidentificar</strong> um paciente mesmo em um conjunto de dados
+      sem nome ou prontuário. Por isso, todo evento temporal do ATPBR é registrado como
+      <strong>número de dias decorridos em relação a um marco</strong>, e não como uma data.
+    </p>
+    <p>
+      O marco principal é o <strong>diagnóstico</strong>, definido como o primeiro exame que concluiu a
+      malignidade. Ele é o <strong>dia 0</strong>. Alguns campos usam outros marcos, o
+      <strong>nascimento</strong> (para as variáveis de idade) e o <strong>início do tratamento</strong>
+      (para os intervalos livres de doença, recidiva e progressão). O intervalo em dias preserva toda a
+      informação clínica útil, sobrevida, tempo até tratamento, tempo livre de progressão, sem revelar
+      quando os eventos aconteceram no calendário.
+    </p>
+
+    <h3>⚠️ Este site não armazena nada</h3>
+    <p>
+      Esta é uma página <strong>totalmente local</strong>. As datas que você digita e os resultados
+      calculados <strong>não são enviados a nenhum servidor</strong>, não são gravados em banco de dados,
+      não são registrados em log e não permanecem após o fechamento ou a atualização da aba.
+      A ferramenta apenas <strong>faz a conversão</strong>.
+    </p>
+    <p class="destaque">
+      É <strong>responsabilidade do usuário copiar os resultados</strong> antes de sair da página.
+      Use o botão de copiar ou o download do CSV. Nada é recuperável depois.
+    </p>
+    <p>
+      Recomendação: mantenha as datas de origem apenas no sistema de registro da sua instituição, sob as
+      regras locais de guarda de dados sensíveis, e leve para o ATPBR somente os valores em dias.
+    </p>
+
+    <h3>Contato</h3>
+    <p>
+      Para dúvidas, sugestões ou outras informações, entre em contato pelo e-mail
+      <strong>lilianeconteville@gmail.com</strong>.
+    </p>
+  </section>
+
+  <!-- ====== Conversor ====== -->
+  <section class="card">
+    <h2>📅 Conversão de Datas em Dias</h2>
+    <p class="example">
+      Escolha o modo de conversão, informe as datas e obtenha os valores em dias prontos para
+      preencher no ATPBR.
+    </p>
+
+    <form id="form" class="form" novalidate>
+
+      <!-- Modo -->
+      <fieldset>
+        <legend>🎯 Modo de Conversão</legend>
+
+        <p class="example">Escolha como você quer fazer a conversão.</p>
+
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" name="modo" value="variaveis" checked>
+            <span>
+              <strong>Por variável do ATPBR</strong> - preencha as datas dos marcos e dos eventos, e a
+              ferramenta calcula cada variável em dias com o nome exato do campo da plataforma.
+              <span class="hint">Ex.: days_to_sample = 47</span>
+            </span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="modo" value="lote">
+            <span>
+              <strong>Em lote (duas datas por linha)</strong> - converta muitos pacientes de uma vez,
+              colando uma coluna de datas de referência e uma coluna de datas de evento.
+              <span class="hint">Ex.: 3 linhas de datas geram 3 valores em dias</span>
+            </span>
+          </label>
+        </div>
+      </fieldset>
+
+      <!-- ============ MODO VARIÁVEIS ============ -->
+      <div id="bloco-variaveis">
+
+        <fieldset>
+          <legend>📍 Datas de Referência (marcos)</legend>
+
+          <p class="example">
+            Informe apenas os marcos de que você precisa. Cada variável abaixo indica qual marco usa.
+            Nenhuma dessas datas é registrada no ATPBR, elas servem só para o cálculo aqui.
+          </p>
+
+          <div class="form-group">
+            <label for="ref-nascimento">Data de nascimento</label>
+            <span class="hint">Marco das variáveis de idade (diagnosis_age, age_at_*).</span>
+            <input type="date" id="ref-nascimento">
+          </div>
+
+          <div class="form-group espaco-extra">
+            <label for="ref-diagnostico">Data do diagnóstico <span class="tag-dia0">dia 0</span></label>
+            <span class="hint">Primeiro exame que concluiu a malignidade. Marco das variáveis days_to_*.</span>
+            <input type="date" id="ref-diagnostico">
+          </div>
+
+          <div class="form-group espaco-extra">
+            <label for="ref-tratamento">Data de início do tratamento</label>
+            <span class="hint">Marco das variáveis disease_free_days, recurrence_free_days e progression_free_days.</span>
+            <input type="date" id="ref-tratamento">
+          </div>
+        </fieldset>
+
+        <!-- Variáveis geradas por script.js -->
+        <div id="variaveis-container"></div>
+
+      </div>
+
+      <!-- ============ MODO LOTE ============ -->
+      <div id="bloco-lote" class="oculto">
+
+        <fieldset>
+          <legend>🧮 Conversão em Lote</legend>
+
+          <p class="example" id="lote-help">
+            Informe uma data por linha em cada campo, no formato <code>AAAA-MM-DD</code> ou
+            <code>DD/MM/AAAA</code>. As duas colunas devem ter a mesma quantidade de linhas, pois cada
+            linha corresponde a um paciente ou a uma amostra. O resultado é
+            <em>data do evento menos data de referência</em>, em dias.
+          </p>
+
+          <div class="form-group">
+            <label for="lote-variavel">Variável do ATPBR (opcional)</label>
+            <span class="hint">Só rotula o resultado e o CSV, não altera o cálculo.</span>
+            <select id="lote-variavel">
+              <option value="">-- Sem rótulo (apenas dias) --</option>
+            </select>
+          </div>
+
+          <div class="form-group espaco-extra">
+            <label for="lote-rotulo">Identificadores (opcional)</label>
+            <span class="hint">
+              Um por linha, na mesma ordem das datas. Use o código anonimizado do paciente ou da amostra,
+              nunca nome ou prontuário.
+            </span>
+            <textarea id="lote-rotulo" rows="5" placeholder="Ex: 0001&#10;0002&#10;0003"></textarea>
+          </div>
+
+          <div class="textareas-container espaco-extra">
+            <label>
+              Datas de referência (marco):
+              <span class="hint">uma por linha</span>
+              <textarea id="lote-ref" rows="5" placeholder="Ex: 2024-01-15&#10;2024-02-03&#10;15/03/2024"></textarea>
+            </label>
+            <label>
+              Datas do evento:
+              <span class="hint">uma por linha</span>
+              <textarea id="lote-evento" rows="5" placeholder="Ex: 2024-03-02&#10;2024-04-11&#10;28/05/2024"></textarea>
+            </label>
+          </div>
+
+          <p class="example">
+            Se todos os pacientes compartilham o mesmo marco, você pode informar uma única data de
+            referência: ela será aplicada a todas as linhas de evento.
+          </p>
+        </fieldset>
+
+      </div>
+
+      <button type="submit" class="btn">Converter em Dias</button>
+    </form>
+
+    <div id="resultado" class="resultado"></div>
+  </section>
+
+  <!-- ====== Tabela de referência ====== -->
+  <section class="card">
+    <h2>📋 Variáveis do ATPBR informadas em dias</h2>
+    <p class="example">
+      Todas as variáveis da plataforma que esperam um número de dias, com o marco de contagem de cada uma.
+      Nenhuma outra variável do ATPBR recebe data ou intervalo temporal.
+    </p>
+    <div class="tabela-wrapper">
+      <table class="tabela-vars" id="tabela-vars">
+        <thead>
+          <tr>
+            <th>Variável</th>
+            <th>Módulo</th>
+            <th>Obrigatoriedade</th>
+            <th>Contado de</th>
+            <th>Até</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="example">
+      As variáveis marcadas como obrigatórias precisam ser preenchidas no cadastro. As demais são
+      opcionais e podem ser deixadas em branco quando a informação não estiver disponível.
+    </p>
+  </section>
+</main>
+
+<footer class="footer">
+  Projeto ATPBR · Atlas Tumoral da População Brasileira · © 2026
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
