@@ -190,47 +190,6 @@ legend {
   padding: 0 10px;
 }
 
-.textareas-container {
-  display: flex;
-  gap: 20px; /* Espaço entre os dois campos */
-}
-
-/* ====== Nível do barcode ====== */
-.radio-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.radio-option {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin: 0;
-  padding: 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  font-weight: 400;
-  cursor: pointer;
-}
-
-.radio-option:hover {
-  background: #f7fafd;
-}
-
-.radio-option input[type="radio"] {
-  width: auto;
-  margin: 3px 0 0;
-  padding: 0;
-  accent-color: #2251a4;
-  flex-shrink: 0;
-}
-
-.radio-option:has(input[type="radio"]:checked) {
-  border-color: #2251a4;
-  background: #eaf3ff;
-}
-
 /* Campos escondidos conforme o nível escolhido */
 .oculto {
   display: none !important;
@@ -428,23 +387,98 @@ legend {
   margin-left: 6px;
 }
 
-/* ====== Espaçamento entre campos de um mesmo fieldset ====== */
-.espaco-extra {
-  margin-top: 22px;
+/* ============================================================
+   ETAPA 1: seleção das variáveis
+   ============================================================ */
+
+/* Atalhos "marcar obrigatórias / todas / limpar" */
+.selecao-acoes {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
 }
 
-/* ====== Linha de variável no modo "por variável" ====== */
-.var-item {
+.btn-mini {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2251a4;
+  background: #eef3fa;
+  border: 1px solid #cbdcf5;
+  border-radius: 20px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-mini:hover {
+  background: #dceaff;
+}
+
+.contador {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a5b73;
+}
+
+/* Agrupamento por módulo/categoria */
+.grupo-categoria {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #7a879b;
+  margin: 22px 0 10px;
+}
+
+.grupo-categoria:first-child {
+  margin-top: 0;
+}
+
+.grupo-vars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Uma variável selecionável */
+.check-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0;
+  padding: 14px 16px;
   border: 1px solid #e8ecf2;
   border-radius: 10px;
-  padding: 14px 16px;
-  margin-bottom: 12px;
   background: #fbfcfe;
+  font-weight: 400;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.var-item.pendente {
-  border-color: #f0d9a0;
-  background: #fffdf7;
+.check-option:hover {
+  background: #f7fafd;
+}
+
+.check-option input[type="checkbox"] {
+  width: auto;
+  margin: 2px 0 0;
+  padding: 0;
+  accent-color: #2251a4;
+  flex-shrink: 0;
+  transform: scale(1.25);
+}
+
+.check-option:has(input[type="checkbox"]:checked) {
+  border-color: #2251a4;
+  background: #eaf3ff;
+}
+
+.check-texto {
+  display: block;
 }
 
 .var-nome {
@@ -459,16 +493,17 @@ legend {
 }
 
 .var-desc {
+  display: block;
   font-size: 13px;
   color: #666;
   line-height: 1.45;
-  margin: 6px 0 10px;
+  margin: 6px 0 6px;
 }
 
 .var-marco {
+  display: block;
   font-size: 12px;
   color: #4a5b73;
-  margin-bottom: 10px;
 }
 
 .var-marco strong {
@@ -499,62 +534,126 @@ legend {
   border: 1px solid #cbdcf5;
 }
 
-/* Datas do evento dentro da variável */
-.var-datas {
+/* ============================================================
+   ETAPA 2: campos de data exigidos pela seleção
+   ============================================================ */
+
+/* Estado inicial, antes de marcar qualquer variável */
+.vazio-aviso {
+  box-sizing: border-box;
+  font-size: 14px;
+  color: #4a5b73;
+  background: #f7fafd;
+  border: 1px dashed #cbdcf5;
+  border-radius: 10px;
+  padding: 18px;
+  margin: 0;
+  text-align: center;
+}
+
+.campos-grupo {
+  margin-bottom: 26px;
+}
+
+.campos-grupo:last-child {
+  margin-bottom: 0;
+}
+
+.campos-grupo-titulo {
   display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.var-datas > div {
-  flex: 1 1 180px;
-}
-
-.var-datas label {
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a3d7c;
   margin: 0 0 4px;
-  font-size: 13px;
+}
+
+.campos-grupo-contagem {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #2251a4;
+  background: #eef3fa;
+  border: 1px solid #cbdcf5;
+  border-radius: 20px;
+  padding: 2px 9px;
+}
+
+.campos-grupo-ajuda {
+  margin-bottom: 12px;
+}
+
+/* Uma coluna de datas a colar */
+.campo-item {
+  border: 1px solid #e8ecf2;
+  border-left: 4px solid #2251a4;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  background: #fbfcfe;
+}
+
+.campo-item:last-child {
+  margin-bottom: 0;
+}
+
+.campo-item > label {
+  margin-top: 0;
+  color: #1a3d7c;
+}
+
+/* Quais variáveis dependem desta coluna */
+.campo-usos {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4a5b73;
+  margin: 10px 0 4px;
+}
+
+.campo-usos-lista {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 12px;
+  color: #4a5b73;
+  line-height: 1.6;
+}
+
+.campo-usos-lista code {
   font-weight: 600;
 }
 
-/* Valor calculado ao vivo, ao lado do campo */
-.var-valor {
-  margin-top: 10px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #0f7a5f;
-}
-
-.var-valor.erro {
-  color: #b02a2a;
-}
-
-.var-valor.vazio {
-  color: #999;
-  font-weight: 400;
-}
-
-/* Agrupamento por módulo/categoria */
-.grupo-categoria {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+.uso-papel {
   color: #7a879b;
-  margin: 22px 0 10px;
+  font-style: italic;
 }
 
-.grupo-categoria:first-child {
-  margin-top: 0;
+/* Botão principal desabilitado enquanto nada está selecionado */
+.btn:disabled {
+  background: #c9d3e0;
+  cursor: not-allowed;
+}
+
+.btn:disabled:hover {
+  transform: none;
+  opacity: 1;
 }
 
 /* ====== Resultado ====== */
+.resultado-resumo {
+  box-sizing: border-box;
+  font-size: 13px;
+  color: #4a5b73;
+  text-align: left;
+  margin: 0 0 12px;
+}
+
 .resultado table {
   width: 100%;
   border-collapse: collapse;
   background: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-  margin: 15px 0;
+  margin: 0;
   font-size: 14px;
 }
 
@@ -563,17 +662,18 @@ legend {
   padding: 9px 12px;
   text-align: left;
   border-bottom: 1px solid #e6eef8;
+  white-space: nowrap;
 }
 
 .resultado table th {
   background: #dceaff;
   font-weight: 700;
   font-size: 12px;
-  text-transform: uppercase;
   letter-spacing: 0.5px;
   color: #1a3d7c;
 }
 
+.resultado table th.mono,
 .resultado table td.mono {
   font-family: 'Courier New', Courier, monospace;
 }
@@ -581,7 +681,21 @@ legend {
 .resultado table td.dias {
   font-weight: 700;
   text-align: right;
-  white-space: nowrap;
+}
+
+.resultado table td.vazio {
+  color: #b7bfcb;
+  font-weight: 400;
+  cursor: help;
+}
+
+.resultado table td.negativo {
+  color: #b02a2a;
+}
+
+.tabela-resultado {
+  background: #fff;
+  margin: 0 0 15px;
 }
 
 .resultado .acoes {
@@ -592,6 +706,7 @@ legend {
 }
 
 .resultado .aviso-copiar {
+  box-sizing: border-box;
   font-size: 13px;
   color: #6b4d00;
   background: #fff8e6;
@@ -602,19 +717,28 @@ legend {
 }
 
 .resultado .alerta {
+  box-sizing: border-box;
   font-size: 13px;
-  color: #b02a2a;
-  background: #fdecec;
-  border: 1px solid #f3c4c4;
+  color: #6b4d00;
+  background: #fff8e6;
+  border: 1px solid #f0d9a0;
   border-radius: 8px;
   padding: 10px 14px;
   margin: 15px 0 0;
   text-align: left;
 }
 
+.resultado .alerta-erro {
+  color: #b02a2a;
+  background: #fdecec;
+  border-color: #f3c4c4;
+  margin: 0;
+}
+
 .resultado .alerta ul {
   margin: 6px 0 0;
   padding-left: 20px;
+  line-height: 1.6;
 }
 
 /* ====== Tabela de referência das variáveis ====== */
@@ -665,12 +789,9 @@ legend {
 
 /* ====== Responsividade adicional ====== */
 @media (max-width: 768px) {
-  .var-datas {
-    flex-direction: column;
-    gap: 10px;
-  }
-  .textareas-container {
-    flex-direction: column;
+  .contador {
+    margin-left: 0;
+    width: 100%;
   }
 }
 
@@ -679,11 +800,18 @@ legend {
     font-size: 17px;
   }
   .var-desc,
-  .var-marco {
+  .var-marco,
+  .campo-usos,
+  .campo-usos-lista,
+  .vazio-aviso {
     font-size: 16px;
   }
-  .var-datas label {
-    font-size: 17px;
+  .btn-mini,
+  .contador {
+    font-size: 16px;
+  }
+  .campos-grupo-titulo {
+    font-size: 19px;
   }
   .tabela-vars {
     font-size: 15px;

@@ -71,125 +71,61 @@
   <section class="card">
     <h2>📅 Conversão de Datas em Dias</h2>
     <p class="example">
-      Escolha o modo de conversão, informe as datas e obtenha os valores em dias prontos para
-      preencher no ATPBR.
+      A conversão é sempre <strong>em lote</strong>: você escolhe as variáveis que quer preencher no
+      ATPBR e a ferramenta mostra exatamente quais colunas de data precisa ter em mãos. Cada linha
+      corresponde a um paciente ou a uma amostra, e o resultado é uma tabela pronta para copiar.
     </p>
 
     <form id="form" class="form" novalidate>
 
-      <!-- Modo -->
+      <!-- ============ ETAPA 1: seleção das variáveis ============ -->
       <fieldset>
-        <legend>🎯 Modo de Conversão</legend>
+        <legend>1️⃣ Quais variáveis você quer converter?</legend>
 
-        <p class="example">Escolha como você quer fazer a conversão.</p>
+        <p class="example">
+          Marque as variáveis de número de dias que você precisa gerar. Conforme você marca, a
+          <strong>etapa 2</strong> abaixo passa a mostrar todas as datas de referência e de evento
+          necessárias para calcular cada uma delas.
+        </p>
 
-        <div class="radio-group">
-          <label class="radio-option">
-            <input type="radio" name="modo" value="variaveis" checked>
-            <span>
-              <strong>Por variável do ATPBR</strong> - preencha as datas dos marcos e dos eventos, e a
-              ferramenta calcula cada variável em dias com o nome exato do campo da plataforma.
-              <span class="hint">Ex.: days_to_sample = 47</span>
-            </span>
-          </label>
-          <label class="radio-option">
-            <input type="radio" name="modo" value="lote">
-            <span>
-              <strong>Em lote (duas datas por linha)</strong> - converta muitos pacientes de uma vez,
-              colando uma coluna de datas de referência e uma coluna de datas de evento.
-              <span class="hint">Ex.: 3 linhas de datas geram 3 valores em dias</span>
-            </span>
-          </label>
+        <div class="selecao-acoes">
+          <button type="button" class="btn-mini" data-selecionar="obrigatorias">Marcar as obrigatórias</button>
+          <button type="button" class="btn-mini" data-selecionar="todas">Marcar todas</button>
+          <button type="button" class="btn-mini" data-selecionar="nenhuma">Limpar seleção</button>
+          <span class="contador" id="contador-selecao"></span>
         </div>
+
+        <!-- Checkboxes geradas por script.js -->
+        <div id="selecao-container"></div>
       </fieldset>
 
-      <!-- ============ MODO VARIÁVEIS ============ -->
-      <div id="bloco-variaveis">
+      <!-- ============ ETAPA 2: datas necessárias ============ -->
+      <fieldset>
+        <legend>2️⃣ Datas que você precisa informar</legend>
 
-        <fieldset>
-          <legend>📍 Datas de Referência (marcos)</legend>
+        <p class="example" id="campos-intro">
+          Estes são os campos exigidos pelas variáveis que você marcou. Informe
+          <strong>uma data por linha</strong>, no formato <code>AAAA-MM-DD</code> ou
+          <code>DD/MM/AAAA</code>, sempre na mesma ordem em todas as colunas: a linha 1 de cada campo é
+          o mesmo paciente ou a mesma amostra. Deixe a linha em branco quando a data não existir para
+          aquele registro. Nenhuma dessas datas é registrada no ATPBR, elas servem só para o cálculo
+          aqui.
+        </p>
 
-          <p class="example">
-            Informe apenas os marcos de que você precisa. Cada variável abaixo indica qual marco usa.
-            Nenhuma dessas datas é registrada no ATPBR, elas servem só para o cálculo aqui.
-          </p>
+        <div class="form-group" id="grupo-identificadores">
+          <label for="lote-rotulo">Identificadores (opcional)</label>
+          <span class="hint">
+            Um por linha, na mesma ordem das datas. Use o código anonimizado do paciente ou da amostra,
+            nunca nome ou prontuário.
+          </span>
+          <textarea id="lote-rotulo" rows="5" placeholder="Ex: 0001&#10;0002&#10;0003"></textarea>
+        </div>
 
-          <div class="form-group">
-            <label for="ref-nascimento">Data de nascimento</label>
-            <span class="hint">Marco das variáveis de idade (diagnosis_age, age_at_*).</span>
-            <input type="date" id="ref-nascimento">
-          </div>
+        <!-- Campos de data gerados por script.js conforme a seleção -->
+        <div id="campos-container"></div>
+      </fieldset>
 
-          <div class="form-group espaco-extra">
-            <label for="ref-diagnostico">Data do diagnóstico <span class="tag-dia0">dia 0</span></label>
-            <span class="hint">Primeiro exame que concluiu a malignidade. Marco das variáveis days_to_*.</span>
-            <input type="date" id="ref-diagnostico">
-          </div>
-
-          <div class="form-group espaco-extra">
-            <label for="ref-tratamento">Data de início do tratamento</label>
-            <span class="hint">Marco das variáveis disease_free_days, recurrence_free_days e progression_free_days.</span>
-            <input type="date" id="ref-tratamento">
-          </div>
-        </fieldset>
-
-        <!-- Variáveis geradas por script.js -->
-        <div id="variaveis-container"></div>
-
-      </div>
-
-      <!-- ============ MODO LOTE ============ -->
-      <div id="bloco-lote" class="oculto">
-
-        <fieldset>
-          <legend>🧮 Conversão em Lote</legend>
-
-          <p class="example" id="lote-help">
-            Informe uma data por linha em cada campo, no formato <code>AAAA-MM-DD</code> ou
-            <code>DD/MM/AAAA</code>. As duas colunas devem ter a mesma quantidade de linhas, pois cada
-            linha corresponde a um paciente ou a uma amostra. O resultado é
-            <em>data do evento menos data de referência</em>, em dias.
-          </p>
-
-          <div class="form-group">
-            <label for="lote-variavel">Variável do ATPBR (opcional)</label>
-            <span class="hint">Só rotula o resultado e o CSV, não altera o cálculo.</span>
-            <select id="lote-variavel">
-              <option value="">-- Sem rótulo (apenas dias) --</option>
-            </select>
-          </div>
-
-          <div class="form-group espaco-extra">
-            <label for="lote-rotulo">Identificadores (opcional)</label>
-            <span class="hint">
-              Um por linha, na mesma ordem das datas. Use o código anonimizado do paciente ou da amostra,
-              nunca nome ou prontuário.
-            </span>
-            <textarea id="lote-rotulo" rows="5" placeholder="Ex: 0001&#10;0002&#10;0003"></textarea>
-          </div>
-
-          <div class="textareas-container espaco-extra">
-            <label>
-              Datas de referência (marco):
-              <span class="hint">uma por linha</span>
-              <textarea id="lote-ref" rows="5" placeholder="Ex: 2024-01-15&#10;2024-02-03&#10;15/03/2024"></textarea>
-            </label>
-            <label>
-              Datas do evento:
-              <span class="hint">uma por linha</span>
-              <textarea id="lote-evento" rows="5" placeholder="Ex: 2024-03-02&#10;2024-04-11&#10;28/05/2024"></textarea>
-            </label>
-          </div>
-
-          <p class="example">
-            Se todos os pacientes compartilham o mesmo marco, você pode informar uma única data de
-            referência: ela será aplicada a todas as linhas de evento.
-          </p>
-        </fieldset>
-
-      </div>
-
-      <button type="submit" class="btn">Converter em Dias</button>
+      <button type="submit" class="btn" id="btn-converter">Converter em Dias</button>
     </form>
 
     <div id="resultado" class="resultado"></div>

@@ -12,7 +12,7 @@ sem revelar quando os eventos aconteceram no calendário.
 Marcos usados na plataforma:
 
 - **Diagnóstico** (primeiro exame que concluiu a malignidade) = **dia 0**, marco das variáveis `days_to_*`
-- **Nascimento**, marco das variáveis de idade (`diagnosis_age`, `age_at_*`)
+- **Nascimento**, marco das variáveis de idade (`diagnosis_age_in_days`, `age_at_*`)
 - **Início do tratamento**, marco de `disease_free_days`, `recurrence_free_days` e `progression_free_days`
 
 ## Privacidade
@@ -22,12 +22,34 @@ A página é **totalmente local**: não faz requisição de rede, não usa cooki
 A ferramenta apenas faz a conversão, e é **responsabilidade do usuário copiar os resultados** (botão de
 copiar ou download do CSV) antes de recarregar ou fechar a aba.
 
-## Modos de conversão
+## Como funciona
 
-1. **Por variável do ATPBR** - preencha os marcos e as datas dos eventos; cada variável é calculada com o
-   nome exato do campo da plataforma.
-2. **Em lote** - cole uma coluna de datas de referência e uma de datas de evento para converter muitos
-   pacientes ou amostras de uma vez. Aceita `AAAA-MM-DD` e `DD/MM/AAAA`.
+A conversão é sempre **em lote**, em duas etapas:
+
+1. **Escolha as variáveis.** Uma lista de checkbox com as 15 variáveis do ATPBR que esperam número de
+   dias, agrupadas por módulo e categoria, com a obrigatoriedade de cada uma. Há atalhos para marcar
+   só as obrigatórias, marcar todas ou limpar a seleção.
+2. **Informe as datas.** Conforme as variáveis são marcadas, a etapa 2 monta automaticamente os campos
+   de data necessários, separados em **datas de referência (marcos)** e **datas dos eventos**. Cada
+   campo mostra quais variáveis dependem dele e se é o início ou o fim da contagem. Uma data usada por
+   várias variáveis é pedida uma única vez (a data do diagnóstico, por exemplo, alimenta todas as
+   `days_to_*`). Desmarcar e remarcar uma variável não apaga o que já foi colado.
+
+Cada campo recebe **uma data por linha**, em `AAAA-MM-DD` ou `DD/MM/AAAA`, e a ordem das linhas alinha
+as colunas: a linha 1 de cada campo é o mesmo paciente ou a mesma amostra. Linhas em branco são
+permitidas, e a variável que dependia daquela data fica sem valor (`—`) só naquela linha. Não há
+replicação de uma data para todas as linhas, justamente para não espalhar silenciosamente a data de um
+registro nos demais; uma coluna mais curta que o lote gera um aviso.
+
+O resultado é uma tabela com uma linha por registro e uma coluna por variável selecionada, pronta para
+copiar (separada por tabulação, para colar direto em planilha) ou baixar em CSV.
+
+Validações:
+
+- Texto que não é uma data válida (`31/02/2024`, por exemplo) **bloqueia a conversão** e é listado, para
+  que um erro de digitação nunca passe como célula em branco.
+- Valores negativos são calculados e exibidos, mas sempre acompanhados de aviso, porque indicam evento
+  anterior ao marco. Nas variáveis de idade e de duração, que não admitem negativo, o aviso é explícito.
 
 ## Variáveis contempladas
 
@@ -35,7 +57,7 @@ As 15 variáveis do ATPBR que esperam número de dias:
 
 | Variável | Módulo | Obrigatoriedade |
 | --- | --- | --- |
-| `diagnosis_age` | Paciente | Obrigatória |
+| `diagnosis_age_in_days` | Paciente | Obrigatória |
 | `age_at_menarche` | Paciente | Opcional |
 | `age_at_sexarche` | Paciente | Opcional |
 | `age_at_last_menstruation` | Paciente | Opcional |
@@ -52,7 +74,11 @@ As 15 variáveis do ATPBR que esperam número de dias:
 | `progression_free_days` | Amostra | Opcional |
 
 A lista é definida em `script.js` (constante `VARIAVEIS`) e reflete as especificações em
-`fairdom-seek/db/seeds/ATPBR_variaveis/EN/05_patients.tsv` e `06_samples.tsv`.
+`fairdom-seek/db/seeds/ATPBR_variaveis/EN/05_patients.tsv` e `06_samples.tsv`. Cada variável declara as
+duas pontas da contagem (`de` e `para`); uma ponta é um marco compartilhado (`{ marco: 'diagnostico' }`)
+ou uma data própria da variável (`{ label: 'Data da coleta da amostra' }`). Os campos da etapa 2 são
+derivados dessas declarações, então **acrescentar uma variável à constante é suficiente**: o checkbox, os
+campos de data e a coluna do resultado aparecem sozinhos.
 
 ## Como usar
 

@@ -1,0 +1,7 @@
+# Ruído de sistema operacional e de editor
+.DS_Store
+Thumbs.db
+*~
+*.swp
+.vscode/
+*.code-workspace

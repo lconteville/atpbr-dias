@@ -5,21 +5,37 @@
    em localStorage/sessionStorage, não há cookie.
    ============================================================ */
 
-/* ====== Marcos (datas de referência) ====== */
+/* ====== Marcos (datas de referência compartilhadas) ======
+   titulo    -> rótulo do campo na etapa 2
+   label     -> como o marco é citado no texto corrido
+   descricao -> o que é essa data, para o usuário conferir se pegou a certa */
 const MARCOS = {
-  nascimento: { label: 'data de nascimento', campo: 'ref-nascimento' },
-  diagnostico: { label: 'data do diagnóstico (dia 0)', campo: 'ref-diagnostico' },
-  tratamento: { label: 'data de início do tratamento', campo: 'ref-tratamento' }
+  nascimento: {
+    titulo: 'Data de nascimento',
+    label: 'data de nascimento',
+    descricao: 'Data de nascimento do paciente. Marco de todas as variáveis de idade.'
+  },
+  diagnostico: {
+    titulo: 'Data do diagnóstico',
+    label: 'data do diagnóstico (dia 0)',
+    descricao: 'Primeiro exame que concluiu a malignidade. É o dia 0 das variáveis days_to_*.',
+    dia0: true
+  },
+  tratamento: {
+    titulo: 'Data de início do tratamento',
+    label: 'data de início do tratamento',
+    descricao: 'Início do tratamento inicial. Marco dos intervalos livres de doença, recidiva e progressão.'
+  }
 };
 
 /* ====== Todas as variáveis do ATPBR que esperam número de dias ======
    de   -> ponto inicial da contagem
    para -> ponto final da contagem
    { marco: 'x' } reaproveita uma das datas de referência;
-   { label: '...' } gera um campo de data próprio da variável.       */
+   { label: '...' } gera uma coluna de data própria da variável.       */
 const VARIAVEIS = [
   {
-    nome: 'diagnosis_age',
+    nome: 'diagnosis_age_in_days',
     modulo: 'Paciente',
     categoria: 'Diagnóstico Oncológico',
     obrigatoria: true,
@@ -79,8 +95,8 @@ const VARIAVEIS = [
     categoria: 'Saúde Reprodutiva',
     obrigatoria: false,
     descricao: 'Duração total do uso de contraceptivo hormonal, em número de dias. Esta variável é uma duração, então usa duas datas próprias e nenhum marco.',
-    de: { label: 'Data de início do uso' },
-    para: { label: 'Data de término do uso' },
+    de: { label: 'Data de início do uso de contraceptivo hormonal' },
+    para: { label: 'Data de término do uso de contraceptivo hormonal' },
     minZero: true,
     mostrarAnos: false
   },
@@ -188,19 +204,25 @@ const VARIAVEIS = [
 /* ====== Elementos ====== */
 const form = document.getElementById('form');
 const resultado = document.getElementById('resultado');
-const blocoVariaveis = document.getElementById('bloco-variaveis');
-const blocoLote = document.getElementById('bloco-lote');
-const variaveisContainer = document.getElementById('variaveis-container');
-const loteVariavel = document.getElementById('lote-variavel');
+const selecaoContainer = document.getElementById('selecao-container');
+const camposContainer = document.getElementById('campos-container');
+const contadorSelecao = document.getElementById('contador-selecao');
+const grupoIdentificadores = document.getElementById('grupo-identificadores');
+const camposIntro = document.getElementById('campos-intro');
+const btnConverter = document.getElementById('btn-converter');
 
-const getModo = () => document.querySelector('input[name="modo"]:checked').value;
+/* ====== Estado ======
+   Só em memória: a seleção e o texto colado vivem nestas duas variáveis e
+   desaparecem com a aba. Nada é persistido. */
+const selecionadas = new Set();
+const valores = {}; // chave do campo -> texto colado, preservado ao remarcar variáveis
 
 /* ====== Datas ======
    As datas são tratadas como dias de calendário em UTC, para que o
    fuso horário do navegador nunca desloque a contagem em 1 dia.    */
 const MS_DIA = 86400000;
 
-// Aceita AAAA-MM-DD (campos <input type="date"> e colagem) e DD/MM/AAAA ou DD-MM-AAAA (colagem).
+// Aceita AAAA-MM-DD e DD/MM/AAAA ou DD-MM-AAAA.
 const parseData = (texto) => {
   const s = (texto || '').trim();
   if (!s) return null;
@@ -231,30 +253,89 @@ const escapar = (t) => String(t).replace(/[&<>"]/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
 ));
 
-/* ====== Montagem do modo "por variável" ====== */
-const idCampo = (variavel, ponta) => `ev-${variavel.nome}-${ponta}`;
+const slug = (t) => String(t)
+  .toLowerCase()
+  .normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/[^a-z0-9]+/g, '_')
+  .replace(/^_+|_+$/g, '');
 
-const htmlPonta = (variavel, ponta) => {
-  const spec = variavel[ponta];
-  if (spec.marco) return '';
-  return `
-    <div>
-      <label for="${idCampo(variavel, ponta)}">${escapar(spec.label)}</label>
-      <input type="date" id="${idCampo(variavel, ponta)}" data-variavel="${variavel.nome}">
-    </div>`;
+const plural = (n, um, muitos) => `${n} ${n === 1 ? um : muitos}`;
+
+/* ====== Catálogo de campos de data ======
+   Cada ponta de cada variável aponta para um campo. Marcos são
+   compartilhados entre variáveis; datas de evento com o mesmo rótulo
+   também são, para que o usuário cole cada coluna uma única vez.      */
+const chaveDe = (spec) => (spec.marco ? `ref:${spec.marco}` : `ev:${slug(spec.label)}`);
+
+const CAMPOS = new Map();
+
+const registrarCampos = () => {
+  // Marcos primeiro, na ordem declarada, para que apareçam no topo da etapa 2.
+  Object.keys(MARCOS).forEach((k) => {
+    CAMPOS.set(`ref:${k}`, {
+      chave: `ref:${k}`,
+      tipo: 'referencia',
+      titulo: MARCOS[k].titulo,
+      descricao: MARCOS[k].descricao,
+      dia0: !!MARCOS[k].dia0,
+      usadoPor: []
+    });
+  });
+
+  VARIAVEIS.forEach((v) => {
+    ['de', 'para'].forEach((ponta) => {
+      const spec = v[ponta];
+      const chave = chaveDe(spec);
+      if (!CAMPOS.has(chave)) {
+        CAMPOS.set(chave, {
+          chave,
+          tipo: 'evento',
+          titulo: spec.label,
+          descricao: '',
+          dia0: false,
+          usadoPor: []
+        });
+      }
+      const campo = CAMPOS.get(chave);
+      if (!campo.usadoPor.includes(v.nome)) campo.usadoPor.push(v.nome);
+    });
+  });
 };
 
-const htmlMarco = (spec) => (spec.marco ? MARCOS[spec.marco].label : spec.label.toLowerCase());
+const variaveisSelecionadas = () => VARIAVEIS.filter((v) => selecionadas.has(v.nome));
 
-const montarVariaveis = () => {
+// Campos exigidos pela seleção atual, marcos antes das datas de evento.
+const camposNecessarios = () => {
+  const nomes = new Set(selecionadas);
+  const lista = [];
+  CAMPOS.forEach((campo) => {
+    const usados = campo.usadoPor.filter((n) => nomes.has(n));
+    if (usados.length) lista.push({ ...campo, usadoPor: usados });
+  });
+  return lista.sort((a, b) => (a.tipo === b.tipo ? 0 : a.tipo === 'referencia' ? -1 : 1));
+};
+
+/* ====== Etapa 1: checkboxes das variáveis ====== */
+const papelDoCampo = (v, campoChave) => {
+  const ehDe = chaveDe(v.de) === campoChave;
+  const ehPara = chaveDe(v.para) === campoChave;
+  if (ehDe && ehPara) return 'início e fim da contagem';
+  if (ehDe) return 'início da contagem';
+  if (ehPara) return 'fim da contagem';
+  return '';
+};
+
+const textoMarco = (spec) => (spec.marco ? MARCOS[spec.marco].label : spec.label.toLowerCase());
+
+const montarSelecao = () => {
   let html = '';
   let categoriaAtual = null;
 
   VARIAVEIS.forEach((v) => {
     const cat = `${v.modulo} · ${v.categoria}`;
     if (cat !== categoriaAtual) {
-      if (categoriaAtual !== null) html += '</fieldset>';
-      html += `<fieldset><legend>${escapar(cat)}</legend>`;
+      if (categoriaAtual !== null) html += '</div>';
+      html += `<p class="grupo-categoria">${escapar(cat)}</p><div class="grupo-vars">`;
       categoriaAtual = cat;
     }
 
@@ -262,124 +343,153 @@ const montarVariaveis = () => {
       ? '<span class="badge badge-obrigatoria">obrigatória</span>'
       : '<span class="badge badge-opcional">opcional</span>';
 
-    const camposDatas = htmlPonta(v, 'de') + htmlPonta(v, 'para');
-    const semCamposProprios = camposDatas.trim() === '';
+    html += `
+      <label class="check-option" for="chk-${v.nome}">
+        <input type="checkbox" id="chk-${v.nome}" value="${v.nome}" data-checkvar>
+        <span class="check-texto">
+          <span class="var-nome">${v.nome} ${badge}</span>
+          <span class="var-desc">${escapar(v.descricao)}</span>
+          <span class="var-marco">Contagem: de <strong>${escapar(textoMarco(v.de))}</strong>
+            até <strong>${escapar(textoMarco(v.para))}</strong>.</span>
+        </span>
+      </label>`;
+  });
+
+  if (categoriaAtual !== null) html += '</div>';
+  selecaoContainer.innerHTML = html;
+};
+
+/* ====== Etapa 2: campos de data exigidos pela seleção ====== */
+const idTextarea = (chave) => `campo-${slug(chave)}`;
+
+const montarCampos = () => {
+  const necessarios = camposNecessarios();
+  const total = selecionadas.size;
+
+  contadorSelecao.textContent = total
+    ? `${plural(total, 'variável selecionada', 'variáveis selecionadas')}`
+    : 'nenhuma variável selecionada';
+
+  btnConverter.disabled = total === 0;
+  grupoIdentificadores.classList.toggle('oculto', total === 0);
+  camposIntro.classList.toggle('oculto', total === 0);
+
+  if (!total) {
+    camposContainer.innerHTML = `
+      <p class="vazio-aviso">
+        👆 Marque ao menos uma variável na etapa 1. Os campos de data necessários aparecem aqui
+        automaticamente, sem repetição: uma data usada por várias variáveis é pedida uma única vez.
+      </p>`;
+    return;
+  }
+
+  const grupos = [
+    {
+      tipo: 'referencia',
+      titulo: '📍 Datas de referência (marcos)',
+      ajuda: 'Servem de ponto de partida para as variáveis marcadas. São compartilhadas entre elas, por isso cada uma é pedida uma única vez.'
+    },
+    {
+      tipo: 'evento',
+      titulo: '📌 Datas dos eventos',
+      ajuda: 'A data em que cada acontecimento clínico ocorreu. É o ponto final da contagem.'
+    }
+  ];
+
+  let html = '';
+
+  grupos.forEach((g) => {
+    const doGrupo = necessarios.filter((c) => c.tipo === g.tipo);
+    if (!doGrupo.length) return;
 
     html += `
-      <div class="var-item" id="item-${v.nome}">
-        <div class="var-nome">${v.nome} ${badge}</div>
-        <p class="var-desc">${escapar(v.descricao)}</p>
-        <p class="var-marco">Contagem: de <strong>${escapar(htmlMarco(v.de))}</strong>
-           até <strong>${escapar(htmlMarco(v.para))}</strong>.
-           ${semCamposProprios ? 'Calculada automaticamente a partir das datas de referência.' : ''}</p>
-        ${camposDatas ? `<div class="var-datas">${camposDatas}</div>` : ''}
-        <div class="var-valor vazio" id="valor-${v.nome}">Aguardando datas.</div>
-      </div>`;
+      <div class="campos-grupo">
+        <p class="campos-grupo-titulo">${g.titulo} <span class="campos-grupo-contagem">${plural(doGrupo.length, 'campo', 'campos')}</span></p>
+        <p class="hint campos-grupo-ajuda">${escapar(g.ajuda)}</p>`;
+
+    doGrupo.forEach((campo) => {
+      const usos = campo.usadoPor.map((nome) => {
+        const v = VARIAVEIS.find((x) => x.nome === nome);
+        return `<li><code>${nome}</code> <span class="uso-papel">${escapar(papelDoCampo(v, campo.chave))}</span></li>`;
+      }).join('');
+
+      html += `
+        <div class="campo-item">
+          <label for="${idTextarea(campo.chave)}">
+            ${escapar(campo.titulo)}
+            ${campo.dia0 ? '<span class="tag-dia0">dia 0</span>' : ''}
+          </label>
+          ${campo.descricao ? `<span class="hint">${escapar(campo.descricao)}</span>` : ''}
+          <p class="campo-usos">Necessária para ${plural(campo.usadoPor.length, 'variável', 'variáveis')}:</p>
+          <ul class="campo-usos-lista">${usos}</ul>
+          <textarea id="${idTextarea(campo.chave)}" data-campo="${campo.chave}" rows="5"
+            placeholder="Ex: 2024-01-15&#10;2024-02-03&#10;15/03/2024"></textarea>
+        </div>`;
+    });
+
+    html += '</div>';
   });
 
-  if (categoriaAtual !== null) html += '</fieldset>';
-  variaveisContainer.innerHTML = html;
-};
+  camposContainer.innerHTML = html;
 
-/* Lê as duas pontas de uma variável e devolve o resultado do cálculo.
-   Uma variável só é considerada "em uso" quando pelo menos um dos seus
-   campos de data próprios foi preenchido. Assim, preencher um marco não
-   faz a ferramenta cobrar todas as variáveis opcionais que dependem dele. */
-const calcular = (v) => {
-  const ler = (ponta) => {
-    const spec = v[ponta];
-    const proprio = !spec.marco;
-    const el = document.getElementById(proprio ? idCampo(v, ponta) : MARCOS[spec.marco].campo);
-    return { valor: parseData(el ? el.value : ''), rotulo: htmlMarco(spec), proprio };
-  };
-
-  const de = ler('de');
-  const para = ler('para');
-  const pontas = [de, para];
-
-  const temCampoProprio = pontas.some((p) => p.proprio);
-  const proprioPreenchido = pontas.some((p) => p.proprio && p.valor !== null);
-
-  // Sem campo próprio (as duas pontas são marcos): calcula em silêncio quando
-  // ambos os marcos existem e fica em espera enquanto faltar algum.
-  if (!temCampoProprio && (de.valor === null || para.valor === null)) {
-    return { estado: 'vazio' };
-  }
-
-  // Com campo próprio, nada preenchido pelo usuário significa variável não informada.
-  if (temCampoProprio && !proprioPreenchido) {
-    return { estado: 'vazio' };
-  }
-
-  const faltando = pontas.find((p) => p.valor === null);
-  if (faltando) {
-    return { estado: 'incompleto', mensagem: `Informe a ${faltando.rotulo}.` };
-  }
-
-  const dias = diffDias(de.valor, para.valor);
-
-  if (dias < 0 && v.minZero) {
-    return { estado: 'invalido', dias, mensagem: `Valor negativo (${dias} dias): a ${para.rotulo} é anterior à ${de.rotulo}.` };
-  }
-
-  const aviso = dias < 0
-    ? `Valor negativo (${dias} dias): a ${para.rotulo} é anterior à ${de.rotulo}. Confirme se está correto.`
-    : null;
-
-  return { estado: 'ok', dias, aviso };
-};
-
-/* Recalcula todas as variáveis e atualiza o valor exibido em cada uma. */
-const atualizarVariaveis = () => {
-  VARIAVEIS.forEach((v) => {
-    const r = calcular(v);
-    const alvo = document.getElementById(`valor-${v.nome}`);
-    const item = document.getElementById(`item-${v.nome}`);
-    if (!alvo) return;
-
-    alvo.classList.remove('erro', 'vazio');
-    item.classList.remove('pendente');
-
-    if (r.estado === 'vazio') {
-      alvo.classList.add('vazio');
-      alvo.textContent = 'Aguardando datas.';
-    } else if (r.estado === 'incompleto') {
-      alvo.classList.add('erro');
-      item.classList.add('pendente');
-      alvo.textContent = `⚠️ ${r.mensagem}`;
-    } else if (r.estado === 'invalido') {
-      alvo.classList.add('erro');
-      item.classList.add('pendente');
-      alvo.textContent = `⚠️ ${r.mensagem}`;
-    } else {
-      const anos = v.mostrarAnos ? ` (≈ ${emAnos(r.dias)} anos)` : '';
-      alvo.textContent = `${v.nome} = ${r.dias} dias${anos}${r.aviso ? ' ⚠️' : ''}`;
-    }
+  // Devolve o que já havia sido colado, para que remarcar variáveis não apague nada.
+  camposContainer.querySelectorAll('textarea[data-campo]').forEach((ta) => {
+    ta.value = valores[ta.dataset.campo] || '';
   });
 };
 
-/* ====== Alternância de modo ====== */
-const atualizarModo = () => {
-  const lote = getModo() === 'lote';
-  blocoVariaveis.classList.toggle('oculto', lote);
-  blocoLote.classList.toggle('oculto', !lote);
-  resultado.innerHTML = '';
+/* ====== Leitura das colunas coladas ======
+   Linhas em branco no meio são preservadas, porque elas alinham as colunas:
+   a linha 3 de um campo é o mesmo registro que a linha 3 de outro.        */
+const linhasDe = (texto) => {
+  const arr = String(texto || '').replace(/\r/g, '').split('\n').map((t) => t.trim());
+  while (arr.length && arr[arr.length - 1] === '') arr.pop();
+  return arr;
 };
 
 /* ====== Resultado ====== */
-const montarResultado = ({ titulo, colunas, linhas, csv, arquivo, avisos, textoCopia }) => {
-  const cabecalho = colunas.map((c) => `<th>${escapar(c.titulo)}</th>`).join('');
-  const corpo = linhas.map((l) => `<tr>${
-    colunas.map((c) => `<td class="${c.classe || ''}">${escapar(l[c.chave])}</td>`).join('')
+const mostrarErro = (msg, itens) => {
+  const lista = (itens && itens.length)
+    ? `<ul class="erro-lista">${itens.map((i) => `<li>${escapar(i)}</li>`).join('')}</ul>`
+    : '';
+  resultado.innerHTML = `<div class="alerta alerta-erro"><strong>${escapar(msg)}</strong>${lista}</div>`;
+  resultado.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+};
+
+const limparTudo = () => {
+  form.querySelectorAll('textarea').forEach((el) => { el.value = ''; });
+  Object.keys(valores).forEach((k) => { delete valores[k]; });
+  resultado.innerHTML = '';
+  window.scrollTo({ top: form.offsetTop - 40, behavior: 'smooth' });
+};
+
+const copiarFallback = (texto, aoCopiar) => {
+  const area = document.createElement('textarea');
+  area.value = texto;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.opacity = '0';
+  document.body.appendChild(area);
+  area.select();
+  try { document.execCommand('copy'); aoCopiar(); } catch (e) { /* nada a fazer */ }
+  document.body.removeChild(area);
+};
+
+const montarResultado = ({ titulo, cabecalhos, linhas, resumo, csv, arquivo, avisos, textoCopia }) => {
+  const thead = `<tr>${cabecalhos.map((c) => `<th${c.mono ? ' class="mono"' : ''}>${escapar(c.titulo)}</th>`).join('')}</tr>`;
+
+  const tbody = linhas.map((celulas) => `<tr>${
+    celulas.map((c) => `<td class="${c.classe || ''}"${c.titulo ? ` title="${escapar(c.titulo)}"` : ''}>${escapar(c.texto)}</td>`).join('')
   }</tr>`).join('');
 
   const blocoAvisos = (avisos && avisos.length)
-    ? `<div class="alerta"><strong>Atenção:</strong><ul>${avisos.map((a) => `<li>${escapar(a)}</li>`).join('')}</ul></div>`
+    ? `<div class="alerta"><strong>Confira estes pontos:</strong><ul>${avisos.map((a) => `<li>${escapar(a)}</li>`).join('')}</ul></div>`
     : '';
 
   resultado.innerHTML = `
     <h3>${escapar(titulo)}</h3>
-    <table><thead><tr>${cabecalho}</tr></thead><tbody>${corpo}</tbody></table>
+    <p class="resultado-resumo">${escapar(resumo)}</p>
+    <div class="tabela-wrapper tabela-resultado"><table><thead>${thead}</thead><tbody>${tbody}</tbody></table></div>
     <div class="acoes">
       <button type="button" id="btnCopiar" class="btn">📋 Copiar resultados</button>
       <button type="button" id="btnCsv" class="btn">📥 Baixar CSV</button>
@@ -416,134 +526,132 @@ const montarResultado = ({ titulo, colunas, linhas, csv, arquivo, avisos, textoC
   });
 
   document.getElementById('btnLimpar').addEventListener('click', limparTudo);
+
+  resultado.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 };
 
-const copiarFallback = (texto, aoCopiar) => {
-  const area = document.createElement('textarea');
-  area.value = texto;
-  area.setAttribute('readonly', '');
-  area.style.position = 'fixed';
-  area.style.opacity = '0';
-  document.body.appendChild(area);
-  area.select();
-  try { document.execCommand('copy'); aoCopiar(); } catch (e) { /* nada a fazer */ }
-  document.body.removeChild(area);
-};
-
-const mostrarErro = (msg) => {
-  resultado.innerHTML = `<p style="color:red;">${escapar(msg)}</p>`;
-};
-
-const limparTudo = () => {
-  form.querySelectorAll('input[type="date"], textarea').forEach((el) => { el.value = ''; });
-  resultado.innerHTML = '';
-  atualizarVariaveis();
-  window.scrollTo({ top: form.offsetTop - 40, behavior: 'smooth' });
-};
-
-/* ====== Submissão: modo por variável ====== */
-const converterVariaveis = () => {
-  const linhas = [];
-  const csv = ['Variavel;Modulo;Categoria;Obrigatoriedade;Dias'];
-  const textos = [];
-  const avisos = [];
-
-  VARIAVEIS.forEach((v) => {
-    const r = calcular(v);
-    if (r.estado === 'vazio') return;
-    if (r.estado === 'incompleto' || r.estado === 'invalido') {
-      avisos.push(`${v.nome}: ${r.mensagem}`);
-      return;
-    }
-    if (r.aviso) avisos.push(`${v.nome}: ${r.aviso}`);
-
-    linhas.push({
-      variavel: v.nome,
-      modulo: v.modulo,
-      dias: v.mostrarAnos ? `${r.dias} (≈ ${emAnos(r.dias)} anos)` : String(r.dias)
-    });
-    csv.push(`${v.nome};${v.modulo};${v.categoria};${v.obrigatoria ? 'Obrigatoria' : 'Opcional'};${r.dias}`);
-    textos.push(`${v.nome} = ${r.dias}`);
-  });
-
-  if (!linhas.length) {
-    return mostrarErro('⚠️ Nenhuma variável pôde ser calculada. Informe pelo menos um marco e a data do evento correspondente.');
+/* ====== Conversão ====== */
+const converter = () => {
+  const vars = variaveisSelecionadas();
+  if (!vars.length) {
+    return mostrarErro('⚠️ Marque na etapa 1 pelo menos uma variável que você quer converter.');
   }
 
+  const necessarios = camposNecessarios();
+
+  // 1. Lê as colunas.
+  const colunas = {};
+  necessarios.forEach((c) => { colunas[c.chave] = linhasDe(valores[c.chave]); });
+  const ids = linhasDe(document.getElementById('lote-rotulo').value);
+
+  const preenchidos = necessarios.filter((c) => colunas[c.chave].length);
+  if (!preenchidos.length) {
+    return mostrarErro('⚠️ Cole as datas na etapa 2. Nenhum campo foi preenchido.');
+  }
+
+  // 2. Define quantas linhas (registros) existem: a coluna mais longa manda.
+  //    Não há replicação de uma data para todas as linhas, porque com várias
+  //    colunas isso espalharia silenciosamente a data de um registro nos outros.
+  const totalLinhas = Math.max(...preenchidos.map((c) => colunas[c.chave].length), ids.length);
+
+  // Colunas mais curtas não travam a conversão, apenas deixam as últimas linhas
+  // sem aquela data. Mesmo assim vale avisar, porque quase sempre é uma colagem
+  // incompleta e não uma ausência real.
+  const avisos = preenchidos
+    .filter((c) => colunas[c.chave].length < totalLinhas)
+    .map((c) => `"${c.titulo}" tem ${plural(colunas[c.chave].length, 'linha', 'linhas')} e o lote tem ${totalLinhas}: as linhas ${colunas[c.chave].length + 1} em diante ficaram sem essa data. Confira se a colagem veio completa.`);
+
+  if (ids.length && ids.length < totalLinhas) {
+    avisos.push(`"Identificadores" tem ${plural(ids.length, 'linha', 'linhas')} e o lote tem ${totalLinhas}: as linhas seguintes foram numeradas automaticamente.`);
+  }
+
+  const valorNa = (chave, i) => (colunas[chave] || [])[i] || '';
+
+  // 3. Valida todo texto não vazio antes de converter, para que um erro de
+  //    digitação nunca passe como célula em branco.
+  const erros = [];
+  necessarios.forEach((c) => {
+    (colunas[c.chave] || []).forEach((texto, i) => {
+      if (texto && parseData(texto) === null) {
+        erros.push(`"${c.titulo}", linha ${i + 1}: "${texto}" não é uma data válida (use AAAA-MM-DD ou DD/MM/AAAA).`);
+      }
+    });
+  });
+
+  if (erros.length) {
+    const amostra = erros.slice(0, 12);
+    if (erros.length > amostra.length) amostra.push(`... e mais ${erros.length - amostra.length}.`);
+    return mostrarErro('⚠️ Corrija as datas abaixo antes de converter. Nada foi calculado:', amostra);
+  }
+
+  // 4. Calcula.
+  const linhas = [];
+  const csv = [['Identificador', ...vars.map((v) => v.nome)].join(';')];
+  const textos = [['Identificador', ...vars.map((v) => v.nome)].join('\t')];
+  const contagem = {};
+  vars.forEach((v) => { contagem[v.nome] = 0; });
+
+  for (let i = 0; i < totalLinhas; i++) {
+    const identificador = ids[i] || String(i + 1);
+    const celulas = [{ texto: identificador, classe: 'mono' }];
+    const valoresCsv = [];
+
+    vars.forEach((v) => {
+      const de = parseData(valorNa(chaveDe(v.de), i));
+      const para = parseData(valorNa(chaveDe(v.para), i));
+
+      if (de === null || para === null) {
+        const faltando = [];
+        if (de === null) faltando.push(CAMPOS.get(chaveDe(v.de)).titulo);
+        if (para === null) faltando.push(CAMPOS.get(chaveDe(v.para)).titulo);
+        celulas.push({
+          texto: '—',
+          classe: 'dias vazio',
+          titulo: `Sem valor: falta ${faltando.join(' e ')} na linha ${i + 1}.`
+        });
+        valoresCsv.push('');
+        return;
+      }
+
+      const dias = diffDias(de, para);
+      contagem[v.nome]++;
+
+      if (dias < 0) {
+        avisos.push(
+          `Linha ${i + 1} (${identificador}) · ${v.nome} = ${dias} dias: a ${textoMarco(v.para)} é anterior à ${textoMarco(v.de)}.` +
+          (v.minZero ? ' Esta variável não admite valor negativo, verifique as datas.' : ' Confirme se está correto.')
+        );
+      }
+
+      celulas.push({
+        texto: String(dias),
+        classe: dias < 0 ? 'dias negativo' : 'dias',
+        titulo: v.mostrarAnos ? `≈ ${emAnos(dias)} anos` : ''
+      });
+      valoresCsv.push(String(dias));
+    });
+
+    linhas.push(celulas);
+    csv.push([identificador, ...valoresCsv].join(';'));
+    textos.push([identificador, ...valoresCsv].join('\t'));
+  }
+
+  // 5. Avisa sobre variáveis que ficaram sem nenhum valor.
+  vars.forEach((v) => {
+    if (contagem[v.nome] === 0) {
+      avisos.push(`${v.nome}: nenhuma linha pôde ser calculada, faltam as datas de "${CAMPOS.get(chaveDe(v.de)).titulo}" e/ou "${CAMPOS.get(chaveDe(v.para)).titulo}".`);
+    }
+  });
+
+  const calculados = Object.values(contagem).reduce((a, b) => a + b, 0);
+
   montarResultado({
-    titulo: 'Valores em dias para o ATPBR:',
-    colunas: [
-      { titulo: 'Variável', chave: 'variavel', classe: 'mono' },
-      { titulo: 'Módulo', chave: 'modulo' },
-      { titulo: 'Dias', chave: 'dias', classe: 'dias' }
-    ],
+    titulo: 'Valores em dias para o ATPBR',
+    cabecalhos: [{ titulo: 'Identificador' }, ...vars.map((v) => ({ titulo: v.nome, mono: true }))],
     linhas,
+    resumo: `${plural(totalLinhas, 'linha', 'linhas')} × ${plural(vars.length, 'variável', 'variáveis')} · ${plural(calculados, 'valor calculado', 'valores calculados')}. O traço (—) significa que faltou uma das datas daquela linha; passe o mouse sobre a célula para ver qual.`,
     csv,
     arquivo: 'dias_convertidos_ATPBR.csv',
-    avisos,
-    textoCopia: textos.join('\n')
-  });
-};
-
-/* ====== Submissão: modo em lote ====== */
-const converterLote = () => {
-  const emLinhas = (id) => document.getElementById(id).value
-    .split('\n').map((t) => t.trim()).filter((t) => t);
-
-  const refs = emLinhas('lote-ref');
-  const eventos = emLinhas('lote-evento');
-  const ids = emLinhas('lote-rotulo');
-  const variavel = loteVariavel.value;
-  const spec = VARIAVEIS.find((v) => v.nome === variavel);
-
-  if (!refs.length) return mostrarErro('⚠️ Informe pelo menos uma data de referência.');
-  if (!eventos.length) return mostrarErro('⚠️ Informe pelo menos uma data de evento.');
-  if (refs.length !== 1 && refs.length !== eventos.length) {
-    return mostrarErro(`⚠️ Quantidade de datas de referência (${refs.length}) ≠ quantidade de datas de evento (${eventos.length}). Informe uma referência por linha ou uma única referência para todas.`);
-  }
-  if (ids.length && ids.length !== eventos.length) {
-    return mostrarErro(`⚠️ Quantidade de identificadores (${ids.length}) ≠ quantidade de datas de evento (${eventos.length}).`);
-  }
-
-  const linhas = [];
-  const csv = [variavel ? 'Identificador;Variavel;Dias' : 'Identificador;Dias'];
-  const textos = [];
-  const avisos = [];
-
-  for (let i = 0; i < eventos.length; i++) {
-    const textoRef = refs.length === 1 ? refs[0] : refs[i];
-    const dataRef = parseData(textoRef);
-    const dataEv = parseData(eventos[i]);
-    const identificador = ids.length ? ids[i] : String(i + 1);
-
-    if (dataRef === null) {
-      return mostrarErro(`⚠️ Data de referência inválida na linha ${refs.length === 1 ? 1 : i + 1}: "${textoRef}" (use AAAA-MM-DD ou DD/MM/AAAA).`);
-    }
-    if (dataEv === null) {
-      return mostrarErro(`⚠️ Data de evento inválida na linha ${i + 1}: "${eventos[i]}" (use AAAA-MM-DD ou DD/MM/AAAA).`);
-    }
-
-    const dias = diffDias(dataRef, dataEv);
-
-    if (dias < 0) {
-      const grave = spec && spec.minZero;
-      avisos.push(`Linha ${i + 1} (${identificador}): valor negativo (${dias} dias), a data do evento é anterior à de referência.${grave ? ` A variável ${variavel} não admite valores negativos.` : ' Confirme se está correto.'}`);
-    }
-
-    linhas.push({ identificador, dias: String(dias) });
-    csv.push(variavel ? `${identificador};${variavel};${dias}` : `${identificador};${dias}`);
-    textos.push(variavel ? `${identificador};${variavel};${dias}` : `${identificador};${dias}`);
-  }
-
-  montarResultado({
-    titulo: variavel ? `Valores em dias para ${variavel}:` : 'Valores em dias:',
-    colunas: [
-      { titulo: 'Identificador', chave: 'identificador', classe: 'mono' },
-      { titulo: 'Dias', chave: 'dias', classe: 'dias' }
-    ],
-    linhas,
-    csv,
-    arquivo: variavel ? `dias_${variavel}_ATPBR.csv` : 'dias_convertidos_ATPBR.csv',
     avisos,
     textoCopia: textos.join('\n')
   });
@@ -557,32 +665,46 @@ const montarTabelaReferencia = () => {
       <td class="mono">${v.nome}</td>
       <td>${escapar(v.modulo)}</td>
       <td>${v.obrigatoria ? 'Obrigatória' : 'Opcional'}</td>
-      <td>${escapar(htmlMarco(v.de))}</td>
-      <td>${escapar(htmlMarco(v.para))}</td>
+      <td>${escapar(textoMarco(v.de))}</td>
+      <td>${escapar(textoMarco(v.para))}</td>
     </tr>`).join('');
 };
 
 /* ====== Inicialização ====== */
-montarVariaveis();
+registrarCampos();
+montarSelecao();
 montarTabelaReferencia();
+montarCampos();
 
-VARIAVEIS.forEach((v) => {
-  loteVariavel.insertAdjacentHTML('beforeend',
-    `<option value="${v.nome}">${v.nome} (${v.modulo})</option>`);
+// Marcar/desmarcar variável: refaz a etapa 2 preservando o que já foi colado.
+selecaoContainer.addEventListener('change', (e) => {
+  if (!e.target.matches('[data-checkvar]')) return;
+  if (e.target.checked) selecionadas.add(e.target.value); else selecionadas.delete(e.target.value);
+  montarCampos();
+  resultado.innerHTML = '';
 });
 
-document.querySelectorAll('input[name="modo"]').forEach((radio) => {
-  radio.addEventListener('change', atualizarModo);
+// Atalhos de seleção.
+document.querySelectorAll('[data-selecionar]').forEach((botao) => {
+  botao.addEventListener('click', () => {
+    const modo = botao.dataset.selecionar;
+    selecionadas.clear();
+    if (modo === 'todas') VARIAVEIS.forEach((v) => selecionadas.add(v.nome));
+    if (modo === 'obrigatorias') VARIAVEIS.filter((v) => v.obrigatoria).forEach((v) => selecionadas.add(v.nome));
+    selecaoContainer.querySelectorAll('[data-checkvar]').forEach((chk) => {
+      chk.checked = selecionadas.has(chk.value);
+    });
+    montarCampos();
+    resultado.innerHTML = '';
+  });
 });
 
-form.addEventListener('input', (e) => {
-  if (e.target.type === 'date') atualizarVariaveis();
+// Guarda o texto colado em memória, para sobreviver à remontagem da etapa 2.
+camposContainer.addEventListener('input', (e) => {
+  if (e.target.dataset.campo) valores[e.target.dataset.campo] = e.target.value;
 });
 
 form.addEventListener('submit', (e) => {
   e.preventDefault();
-  if (getModo() === 'lote') converterLote(); else converterVariaveis();
+  converter();
 });
-
-atualizarModo();
-atualizarVariaveis();
