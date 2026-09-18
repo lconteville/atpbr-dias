@@ -99,12 +99,6 @@
       <fieldset>
         <legend>1️⃣ Quais variáveis você quer converter?</legend>
 
-        <p class="example">
-          Marque as variáveis de número de dias que você precisa gerar. Conforme você marca, a
-          <strong>etapa 2</strong> abaixo passa a mostrar todas as datas de referência e de evento
-          necessárias para calcular cada uma delas.
-        </p>
-
         <div class="selecao-acoes">
           <button type="button" class="btn-mini" data-selecionar="obrigatorias">Marcar as obrigatórias</button>
           <button type="button" class="btn-mini" data-selecionar="todas">Marcar todas</button>
@@ -121,12 +115,9 @@
         <legend>2️⃣ Datas que você precisa informar</legend>
 
         <p class="example" id="campos-intro">
-          Estes são os campos exigidos pelas variáveis que você marcou. Informe
-          <strong>uma data por linha</strong>, no formato <code>AAAA-MM-DD</code> ou
-          <code>DD/MM/AAAA</code>, sempre na mesma ordem em todas as colunas: a linha 1 de cada campo é
-          o mesmo paciente ou a mesma amostra. Deixe a linha em branco quando a data não existir para
-          aquele registro. Nenhuma dessas datas é registrada no ATPBR, elas servem só para o cálculo
-          aqui.
+          Informe <strong>uma data por linha</strong>, no formato
+          <code>AAAA-MM-DD</code> ou <code>DD/MM/AAAA</code>, mantendo a mesma ordem
+          em todas as colunas. Deixe em branco quando a data não existir.
         </p>
 
         <div id="grupo-identificadores">
@@ -134,9 +125,9 @@
             🏷️ Identificadores <span class="campos-grupo-contagem">opcional</span>
           </p>
           <p class="hint campos-grupo-ajuda">
-            Servem para você reconhecer cada linha do resultado e viram colunas na tabela final.
-            Preencha o do paciente, o da amostra, ou os dois. Use sempre o código anonimizado,
-            nunca nome ou prontuário. Sem nenhum dos dois, as linhas são numeradas.
+            Servem para identificar cada registro no resultado final e serão exibidos como colunas na tabela. 
+            Você pode informar o identificador do <strong>paciente</strong>, da <strong>amostra</strong> ou de ambos. 
+            Se nenhum identificador for informado, as linhas serão numeradas automaticamente.
           </p>
           <!-- Campos gerados por script.js a partir da constante IDENTIFICADORES -->
           <div id="identificadores-container" class="identificadores-grid"></div>
