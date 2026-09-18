@@ -41,10 +41,35 @@ permitidas, e a variável que dependia daquela data fica sem valor (`—`) só n
 replicação de uma data para todas as linhas, justamente para não espalhar silenciosamente a data de um
 registro nos demais; uma coluna mais curta que o lote gera um aviso.
 
-O resultado é uma tabela com uma linha por registro e uma coluna por variável selecionada, pronta para
-copiar (separada por tabulação, para colar direto em planilha) ou baixar em CSV.
+## Identificadores
 
-Validações:
+A etapa 2 abre com dois campos opcionais e independentes, `patient_id` e `sample_id`, cada um com sua
+própria caixa. Os nomes são os mesmos atributos da plataforma, então a coluna sai pronta para colar no
+cadastro. Preencha um, o outro, ou os dois: as colunas do resultado acompanham o que foi preenchido, e
+sem nenhum dos dois o resultado ganha uma coluna `linha` com o número do registro no lote.
+
+Os dois juntos são o caso de um paciente com mais de uma amostra, em que `patient_id` repete e
+`sample_id` distingue as linhas. Definidos em `script.js` na constante `IDENTIFICADORES`.
+
+## A tela de resultados
+
+Uma tabela com uma linha por registro e uma coluna por variável selecionada, pronta para copiar
+(separada por tabulação, para colar direto em planilha) ou baixar em CSV (separado por `;`, com BOM
+para o Excel ler os acentos). Detalhes que importam quando o lote é grande:
+
+- **Números do lote no topo**: registros, variáveis, valores gerados e células sem data.
+- **Cabeçalho fixo** na rolagem vertical e **colunas de identificação congeladas** na rolagem
+  horizontal, para não se perder de quem é a linha com 15 variáveis selecionadas. Os deslocamentos das
+  colunas congeladas são calculados em `fixarColunasIdent()`, porque dependem da largura real
+  renderizada.
+- **Tooltips**: no nome da coluna, a descrição da variável; na célula com traço, qual data faltou.
+- **Avisos** em bloco recolhível, aberto quando são poucos e fechado quando são muitos, para não
+  enterrarem a tabela.
+
+As cores seguem a paleta do frontend do ATPBR (`atpbr-front`, tema `ocean`: primária `#4a6898`,
+secundária `#6dc8a9`), declaradas como variáveis CSS no topo de `style.css`.
+
+## Validações
 
 - Texto que não é uma data válida (`31/02/2024`, por exemplo) **bloqueia a conversão** e é listado, para
   que um erro de digitação nunca passe como célula em branco.

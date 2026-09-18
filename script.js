@@ -201,6 +201,25 @@ const VARIAVEIS = [
   }
 ];
 
+/* ====== Identificadores das linhas ======
+   Não são variáveis do ATPBR que se calculam, são os códigos que o usuário já
+   tem e que fazem a ponte entre o resultado e o cadastro. Os nomes das chaves
+   são os mesmos atributos da plataforma, para a coluna sair pronta para colar. */
+const IDENTIFICADORES = [
+  {
+    chave: 'patient_id',
+    titulo: 'Código do paciente',
+    hint: 'O identificador do paciente no seu cadastro, um por linha.',
+    exemplo: '0001\n0002\n0003'
+  },
+  {
+    chave: 'sample_id',
+    titulo: 'Código da amostra',
+    hint: 'O identificador da amostra, um por linha. Útil quando o mesmo paciente tem mais de uma.',
+    exemplo: '0001\n0002\n0003'
+  }
+];
+
 /* ====== Elementos ====== */
 const form = document.getElementById('form');
 const resultado = document.getElementById('resultado');
@@ -208,6 +227,7 @@ const selecaoContainer = document.getElementById('selecao-container');
 const camposContainer = document.getElementById('campos-container');
 const contadorSelecao = document.getElementById('contador-selecao');
 const grupoIdentificadores = document.getElementById('grupo-identificadores');
+const identificadoresContainer = document.getElementById('identificadores-container');
 const camposIntro = document.getElementById('campos-intro');
 const btnConverter = document.getElementById('btn-converter');
 
@@ -362,6 +382,35 @@ const montarSelecao = () => {
   selecaoContainer.innerHTML = html;
 };
 
+/* ====== Leitura das colunas coladas ======
+   Linhas em branco no meio são preservadas, porque elas alinham as colunas:
+   a linha 3 de um campo é o mesmo registro que a linha 3 de outro.        */
+const linhasDe = (texto) => {
+  const arr = String(texto || '').replace(/\r/g, '').split('\n').map((t) => t.trim());
+  while (arr.length && arr[arr.length - 1] === '') arr.pop();
+  return arr;
+};
+
+/* ====== Etapa 2: identificadores ====== */
+const idTextareaIdent = (chave) => `ident-${chave}`;
+
+const montarIdentificadores = () => {
+  identificadoresContainer.innerHTML = IDENTIFICADORES.map((id) => `
+    <div class="campo-item campo-item-ident">
+      <label for="${idTextareaIdent(id.chave)}">
+        ${escapar(id.titulo)} <code>${id.chave}</code>
+      </label>
+      <span class="hint">${escapar(id.hint)}</span>
+      <textarea id="${idTextareaIdent(id.chave)}" rows="4"
+        placeholder="Ex: ${escapar(id.exemplo)}"></textarea>
+    </div>`).join('');
+};
+
+const lerIdentificadores = () => IDENTIFICADORES.map((id) => ({
+  ...id,
+  linhas: linhasDe(document.getElementById(idTextareaIdent(id.chave)).value)
+}));
+
 /* ====== Etapa 2: campos de data exigidos pela seleção ====== */
 const idTextarea = (chave) => `campo-${slug(chave)}`;
 
@@ -441,15 +490,6 @@ const montarCampos = () => {
   });
 };
 
-/* ====== Leitura das colunas coladas ======
-   Linhas em branco no meio são preservadas, porque elas alinham as colunas:
-   a linha 3 de um campo é o mesmo registro que a linha 3 de outro.        */
-const linhasDe = (texto) => {
-  const arr = String(texto || '').replace(/\r/g, '').split('\n').map((t) => t.trim());
-  while (arr.length && arr[arr.length - 1] === '') arr.pop();
-  return arr;
-};
-
 /* ====== Resultado ====== */
 const mostrarErro = (msg, itens) => {
   const lista = (itens && itens.length)
@@ -478,27 +518,78 @@ const copiarFallback = (texto, aoCopiar) => {
   document.body.removeChild(area);
 };
 
-const montarResultado = ({ titulo, cabecalhos, linhas, resumo, csv, arquivo, avisos, textoCopia }) => {
-  const thead = `<tr>${cabecalhos.map((c) => `<th${c.mono ? ' class="mono"' : ''}>${escapar(c.titulo)}</th>`).join('')}</tr>`;
+/* Congela as colunas de identificação na rolagem horizontal, para não se perder
+   de quem é a linha quando há muitas variáveis. O CSS sozinho não resolve: a
+   segunda coluna precisa do `left` da largura real da primeira, que só existe
+   depois de renderizar (e muda quando a fonte carrega ou a janela muda). */
+const fixarColunasIdent = () => {
+  const ths = [...resultado.querySelectorAll('thead th.col-ident')];
+  if (!ths.length) return;
+
+  let acumulado = 0;
+  const offsets = ths.map((th) => {
+    const inicio = acumulado;
+    acumulado += th.getBoundingClientRect().width;
+    return inicio;
+  });
+
+  const aplicar = (celula, i) => {
+    if (!celula) return;
+    celula.style.left = `${offsets[i]}px`;
+    celula.classList.toggle('ident-limite', i === offsets.length - 1);
+  };
+
+  ths.forEach(aplicar);
+  resultado.querySelectorAll('tbody tr').forEach((tr) => {
+    offsets.forEach((_, i) => aplicar(tr.children[i], i));
+  });
+};
+
+const montarResultado = ({ titulo, cabecalhos, linhas, metricas, nota, csv, arquivo, avisos, textoCopia }) => {
+  // `rotulo` vira title: com 15 colunas o nome técnico é o que cabe no cabeçalho,
+  // e a descrição fica a um passar de mouse.
+  const thead = `<tr>${cabecalhos.map((c) => `
+    <th class="${c.mono ? 'mono' : ''} ${c.ident ? 'col-ident' : ''}"${c.rotulo ? ` title="${escapar(c.rotulo)}"` : ''}>${escapar(c.titulo)}</th>`).join('')}</tr>`;
 
   const tbody = linhas.map((celulas) => `<tr>${
     celulas.map((c) => `<td class="${c.classe || ''}"${c.titulo ? ` title="${escapar(c.titulo)}"` : ''}>${escapar(c.texto)}</td>`).join('')
   }</tr>`).join('');
 
+  const blocoMetricas = metricas.map((m) => `
+    <div class="metrica ${m.destaque ? 'metrica-destaque' : ''}">
+      <span class="metrica-valor">${escapar(m.valor)}</span>
+      <span class="metrica-rotulo">${escapar(m.rotulo)}</span>
+    </div>`).join('');
+
+  // Poucos avisos ficam abertos, porque costumam ser o ponto principal.
+  // Muitos (selecionar 15 variáveis e preencher só algumas datas gera um por
+  // variável) ficam recolhidos, para não enterrarem a tabela.
   const blocoAvisos = (avisos && avisos.length)
-    ? `<div class="alerta"><strong>Confira estes pontos:</strong><ul>${avisos.map((a) => `<li>${escapar(a)}</li>`).join('')}</ul></div>`
+    ? `<details class="alerta"${avisos.length <= 3 ? ' open' : ''}>
+         <summary>⚠️ ${plural(avisos.length, 'ponto a conferir', 'pontos a conferir')}</summary>
+         <ul>${avisos.map((a) => `<li>${escapar(a)}</li>`).join('')}</ul>
+       </details>`
     : '';
 
   resultado.innerHTML = `
-    <h3>${escapar(titulo)}</h3>
-    <p class="resultado-resumo">${escapar(resumo)}</p>
-    <div class="tabela-wrapper tabela-resultado"><table><thead>${thead}</thead><tbody>${tbody}</tbody></table></div>
-    <div class="acoes">
-      <button type="button" id="btnCopiar" class="btn">📋 Copiar resultados</button>
-      <button type="button" id="btnCsv" class="btn">📥 Baixar CSV</button>
-      <button type="button" id="btnLimpar" class="btn">🧹 Limpar campos</button>
+    <div class="resultado-cabecalho">
+      <h3>${escapar(titulo)}</h3>
+      <div class="metricas">${blocoMetricas}</div>
     </div>
+
+    <div class="tabela-wrapper tabela-resultado">
+      <table><thead>${thead}</thead><tbody>${tbody}</tbody></table>
+    </div>
+    <p class="tabela-nota">${escapar(nota)}</p>
+
     ${blocoAvisos}
+
+    <div class="acoes">
+      <button type="button" id="btnCopiar" class="btn btn-primario">📋 Copiar para planilha</button>
+      <button type="button" id="btnCsv" class="btn btn-secundario">📥 Baixar CSV</button>
+      <button type="button" id="btnLimpar" class="btn btn-fantasma">🧹 Limpar campos</button>
+    </div>
+
     <p class="aviso-copiar">
       Estes valores <strong>não foram salvos em nenhum lugar</strong>. Copie ou baixe agora:
       ao recarregar ou fechar a aba, o resultado é perdido.
@@ -506,9 +597,11 @@ const montarResultado = ({ titulo, cabecalhos, linhas, resumo, csv, arquivo, avi
 
   document.getElementById('btnCopiar').addEventListener('click', (ev) => {
     const botao = ev.currentTarget;
+    const original = botao.textContent;
     const marcarCopiado = () => {
       botao.textContent = '✅ Copiado';
-      setTimeout(() => { botao.textContent = '📋 Copiar resultados'; }, 2000);
+      botao.classList.add('btn-copiado');
+      setTimeout(() => { botao.textContent = original; botao.classList.remove('btn-copiado'); }, 2000);
     };
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -520,7 +613,7 @@ const montarResultado = ({ titulo, cabecalhos, linhas, resumo, csv, arquivo, avi
 
   document.getElementById('btnCsv').addEventListener('click', () => {
     // BOM para o Excel reconhecer os acentos.
-    const blob = new Blob(['﻿' + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\ufeff' + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = arquivo;
@@ -529,6 +622,10 @@ const montarResultado = ({ titulo, cabecalhos, linhas, resumo, csv, arquivo, avi
   });
 
   document.getElementById('btnLimpar').addEventListener('click', limparTudo);
+
+  fixarColunasIdent();
+  // A fonte é carregada de fora e muda a largura das colunas; refaz quando chegar.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fixarColunasIdent);
 
   resultado.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 };
@@ -545,7 +642,8 @@ const converter = () => {
   // 1. Lê as colunas.
   const colunas = {};
   necessarios.forEach((c) => { colunas[c.chave] = linhasDe(valores[c.chave]); });
-  const ids = linhasDe(document.getElementById('lote-rotulo').value);
+  const identificadores = lerIdentificadores();
+  const idsUsados = identificadores.filter((id) => id.linhas.length);
 
   const preenchidos = necessarios.filter((c) => colunas[c.chave].length);
   if (!preenchidos.length) {
@@ -555,7 +653,7 @@ const converter = () => {
   // 2. Define quantas linhas (registros) existem: a coluna mais longa manda.
   //    Não há replicação de uma data para todas as linhas, porque com várias
   //    colunas isso espalharia silenciosamente a data de um registro nos outros.
-  const totalLinhas = Math.max(...preenchidos.map((c) => colunas[c.chave].length), ids.length);
+  const totalLinhas = Math.max(...preenchidos.map((c) => colunas[c.chave].length), ...idsUsados.map((id) => id.linhas.length), 0);
 
   // Colunas mais curtas não travam a conversão, apenas deixam as últimas linhas
   // sem aquela data. Mesmo assim vale avisar, porque quase sempre é uma colagem
@@ -564,9 +662,11 @@ const converter = () => {
     .filter((c) => colunas[c.chave].length < totalLinhas)
     .map((c) => `"${c.titulo}" tem ${plural(colunas[c.chave].length, 'linha', 'linhas')} e o lote tem ${totalLinhas}: as linhas ${colunas[c.chave].length + 1} em diante ficaram sem essa data. Confira se a colagem veio completa.`);
 
-  if (ids.length && ids.length < totalLinhas) {
-    avisos.push(`"Identificadores" tem ${plural(ids.length, 'linha', 'linhas')} e o lote tem ${totalLinhas}: as linhas seguintes foram numeradas automaticamente.`);
-  }
+  idsUsados
+    .filter((id) => id.linhas.length < totalLinhas)
+    .forEach((id) => {
+      avisos.push(`"${id.titulo}" (${id.chave}) tem ${plural(id.linhas.length, 'linha', 'linhas')} e o lote tem ${totalLinhas}: as linhas seguintes ficaram sem esse código.`);
+    });
 
   const valorNa = (chave, i) => (colunas[chave] || [])[i] || '';
 
@@ -589,14 +689,27 @@ const converter = () => {
 
   // 4. Calcula.
   const linhas = [];
-  const csv = [['Identificador', ...vars.map((v) => v.nome)].join(';')];
-  const textos = [['Identificador', ...vars.map((v) => v.nome)].join('\t')];
+  // Sem nenhum identificador preenchido, o resultado ainda precisa de uma âncora
+  // por linha: o número do registro no lote.
+  const colunasId = idsUsados.length
+    ? idsUsados.map((id) => ({ titulo: id.chave, rotulo: id.titulo, valorNa: (i) => id.linhas[i] || '' }))
+    : [{ titulo: 'linha', rotulo: 'Número da linha no lote', valorNa: (i) => String(i + 1) }];
+
+  const nomesColunas = [...colunasId.map((c) => c.titulo), ...vars.map((v) => v.nome)];
+  const csv = [nomesColunas.join(';')];
+  const textos = [nomesColunas.join('\t')];
   const contagem = {};
   vars.forEach((v) => { contagem[v.nome] = 0; });
 
   for (let i = 0; i < totalLinhas; i++) {
-    const identificador = ids[i] || String(i + 1);
-    const celulas = [{ texto: identificador, classe: 'mono' }];
+    const valoresId = colunasId.map((c) => c.valorNa(i));
+    // Como os identificadores são opcionais, a linha é citada nos avisos pelo
+    // código que existir e, na falta dos dois, pelo número da linha.
+    const identificador = valoresId.filter((v) => v).join(' / ') || `linha ${i + 1}`;
+    const celulas = valoresId.map((v) => ({
+      texto: v || '—',
+      classe: v ? 'mono ident' : 'mono ident vazio'
+    }));
     const valoresCsv = [];
 
     vars.forEach((v) => {
@@ -635,8 +748,8 @@ const converter = () => {
     });
 
     linhas.push(celulas);
-    csv.push([identificador, ...valoresCsv].join(';'));
-    textos.push([identificador, ...valoresCsv].join('\t'));
+    csv.push([...valoresId, ...valoresCsv].join(';'));
+    textos.push([...valoresId, ...valoresCsv].join('\t'));
   }
 
   // 5. Avisa sobre variáveis que ficaram sem nenhum valor.
@@ -647,12 +760,22 @@ const converter = () => {
   });
 
   const calculados = Object.values(contagem).reduce((a, b) => a + b, 0);
+  const semValor = totalLinhas * vars.length - calculados;
 
   montarResultado({
     titulo: 'Valores em dias para o ATPBR',
-    cabecalhos: [{ titulo: 'Identificador' }, ...vars.map((v) => ({ titulo: v.nome, mono: true }))],
+    cabecalhos: [
+      ...colunasId.map((c) => ({ titulo: c.titulo, rotulo: c.rotulo, mono: true, ident: true })),
+      ...vars.map((v) => ({ titulo: v.nome, rotulo: v.descricao, mono: true }))
+    ],
     linhas,
-    resumo: `${plural(totalLinhas, 'linha', 'linhas')} × ${plural(vars.length, 'variável', 'variáveis')} · ${plural(calculados, 'valor calculado', 'valores calculados')}. O traço (—) significa que faltou uma das datas daquela linha; passe o mouse sobre a célula para ver qual.`,
+    metricas: [
+      { valor: String(totalLinhas), rotulo: totalLinhas === 1 ? 'registro' : 'registros' },
+      { valor: String(vars.length), rotulo: vars.length === 1 ? 'variável' : 'variáveis' },
+      { valor: String(calculados), rotulo: calculados === 1 ? 'valor gerado' : 'valores gerados', destaque: true },
+      { valor: String(semValor), rotulo: semValor === 1 ? 'sem data' : 'sem data' }
+    ],
+    nota: 'O traço (—) marca a célula em que faltou uma das datas daquela linha. Passe o mouse sobre a célula para ver qual data falta, e sobre o nome da coluna para ver a descrição da variável.',
     csv,
     arquivo: 'dias_convertidos_ATPBR.csv',
     avisos,
@@ -676,6 +799,7 @@ const montarTabelaReferencia = () => {
 /* ====== Inicialização ====== */
 registrarCampos();
 montarSelecao();
+montarIdentificadores();
 montarTabelaReferencia();
 montarCampos();
 
@@ -711,3 +835,5 @@ form.addEventListener('submit', (e) => {
   e.preventDefault();
   converter();
 });
+
+window.addEventListener('resize', fixarColunasIdent);
