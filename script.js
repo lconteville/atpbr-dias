@@ -220,6 +220,11 @@ const IDENTIFICADORES = [
   }
 ];
 
+// Os dois identificadores do ATPBR têm exatamente 4 dígitos, incluindo os zeros
+// à esquerda (0001, não 1), porque entram assim na composição do barcode.
+const FORMATO_ID = /^\d{4}$/;
+const AJUDA_FORMATO_ID = 'Exatamente 4 dígitos, com os zeros à esquerda: 0001, não 1.';
+
 /* ====== Elementos ====== */
 const form = document.getElementById('form');
 const resultado = document.getElementById('resultado');
@@ -400,7 +405,7 @@ const montarIdentificadores = () => {
       <label for="${idTextareaIdent(id.chave)}">
         ${escapar(id.titulo)} <code>${id.chave}</code>
       </label>
-      <span class="hint">${escapar(id.hint)}</span>
+      <span class="hint">${escapar(id.hint)} <strong>${escapar(AJUDA_FORMATO_ID)}</strong></span>
       <textarea id="${idTextareaIdent(id.chave)}" rows="4"
         placeholder="Ex: ${escapar(id.exemplo)}"></textarea>
     </div>`).join('');
@@ -545,21 +550,15 @@ const fixarColunasIdent = () => {
   });
 };
 
-const montarResultado = ({ titulo, cabecalhos, linhas, metricas, nota, csv, arquivo, avisos, textoCopia }) => {
+const montarResultado = ({ titulo, cabecalhos, linhas, nota, csv, arquivo, avisos, textoCopia }) => {
   // `rotulo` vira title: com 15 colunas o nome técnico é o que cabe no cabeçalho,
   // e a descrição fica a um passar de mouse.
   const thead = `<tr>${cabecalhos.map((c) => `
-    <th class="${c.mono ? 'mono' : ''} ${c.ident ? 'col-ident' : ''}"${c.rotulo ? ` title="${escapar(c.rotulo)}"` : ''}>${escapar(c.titulo)}</th>`).join('')}</tr>`;
+    <th class="${c.ident ? 'col-ident' : ''}"${c.rotulo ? ` title="${escapar(c.rotulo)}"` : ''}>${escapar(c.titulo)}</th>`).join('')}</tr>`;
 
   const tbody = linhas.map((celulas) => `<tr>${
     celulas.map((c) => `<td class="${c.classe || ''}"${c.titulo ? ` title="${escapar(c.titulo)}"` : ''}>${escapar(c.texto)}</td>`).join('')
   }</tr>`).join('');
-
-  const blocoMetricas = metricas.map((m) => `
-    <div class="metrica ${m.destaque ? 'metrica-destaque' : ''}">
-      <span class="metrica-valor">${escapar(m.valor)}</span>
-      <span class="metrica-rotulo">${escapar(m.rotulo)}</span>
-    </div>`).join('');
 
   // Poucos avisos ficam abertos, porque costumam ser o ponto principal.
   // Muitos (selecionar 15 variáveis e preencher só algumas datas gera um por
@@ -572,10 +571,7 @@ const montarResultado = ({ titulo, cabecalhos, linhas, metricas, nota, csv, arqu
     : '';
 
   resultado.innerHTML = `
-    <div class="resultado-cabecalho">
-      <h3>${escapar(titulo)}</h3>
-      <div class="metricas">${blocoMetricas}</div>
-    </div>
+    <h3>${escapar(titulo)}</h3>
 
     <div class="tabela-wrapper tabela-resultado">
       <table><thead>${thead}</thead><tbody>${tbody}</tbody></table>
@@ -671,8 +667,17 @@ const converter = () => {
   const valorNa = (chave, i) => (colunas[chave] || [])[i] || '';
 
   // 3. Valida todo texto não vazio antes de converter, para que um erro de
-  //    digitação nunca passe como célula em branco.
+  //    digitação nunca passe como célula em branco nem como código truncado.
   const erros = [];
+
+  idsUsados.forEach((id) => {
+    id.linhas.forEach((texto, i) => {
+      if (texto && !FORMATO_ID.test(texto)) {
+        erros.push(`"${id.titulo}" (${id.chave}), linha ${i + 1}: "${texto}" não é um código válido. ${AJUDA_FORMATO_ID}`);
+      }
+    });
+  });
+
   necessarios.forEach((c) => {
     (colunas[c.chave] || []).forEach((texto, i) => {
       if (texto && parseData(texto) === null) {
@@ -684,7 +689,7 @@ const converter = () => {
   if (erros.length) {
     const amostra = erros.slice(0, 12);
     if (erros.length > amostra.length) amostra.push(`... e mais ${erros.length - amostra.length}.`);
-    return mostrarErro('⚠️ Corrija as datas abaixo antes de converter. Nada foi calculado:', amostra);
+    return mostrarErro('⚠️ Corrija os pontos abaixo antes de converter. Nada foi calculado:', amostra);
   }
 
   // 4. Calcula.
@@ -708,7 +713,7 @@ const converter = () => {
     const identificador = valoresId.filter((v) => v).join(' / ') || `linha ${i + 1}`;
     const celulas = valoresId.map((v) => ({
       texto: v || '—',
-      classe: v ? 'mono ident' : 'mono ident vazio'
+      classe: v ? 'ident' : 'ident vazio'
     }));
     const valoresCsv = [];
 
@@ -759,22 +764,13 @@ const converter = () => {
     }
   });
 
-  const calculados = Object.values(contagem).reduce((a, b) => a + b, 0);
-  const semValor = totalLinhas * vars.length - calculados;
-
   montarResultado({
     titulo: 'Valores em dias para o ATPBR',
     cabecalhos: [
-      ...colunasId.map((c) => ({ titulo: c.titulo, rotulo: c.rotulo, mono: true, ident: true })),
-      ...vars.map((v) => ({ titulo: v.nome, rotulo: v.descricao, mono: true }))
+      ...colunasId.map((c) => ({ titulo: c.titulo, rotulo: c.rotulo, ident: true })),
+      ...vars.map((v) => ({ titulo: v.nome, rotulo: v.descricao }))
     ],
     linhas,
-    metricas: [
-      { valor: String(totalLinhas), rotulo: totalLinhas === 1 ? 'registro' : 'registros' },
-      { valor: String(vars.length), rotulo: vars.length === 1 ? 'variável' : 'variáveis' },
-      { valor: String(calculados), rotulo: calculados === 1 ? 'valor gerado' : 'valores gerados', destaque: true },
-      { valor: String(semValor), rotulo: semValor === 1 ? 'sem data' : 'sem data' }
-    ],
     nota: 'O traço (—) marca a célula em que faltou uma das datas daquela linha. Passe o mouse sobre a célula para ver qual data falta, e sobre o nome da coluna para ver a descrição da variável.',
     csv,
     arquivo: 'dias_convertidos_ATPBR.csv',

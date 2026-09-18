@@ -670,58 +670,15 @@ legend {
    Tela de resultados
    ============================================================ */
 
-/* Faixa de topo: título e os números do lote */
-.resultado-cabecalho {
-  background: linear-gradient(135deg, var(--primaria-escura), var(--primaria));
-  color: #fff;
-  padding: 20px 24px;
-}
-
-.resultado-cabecalho h3 {
-  margin: 0 0 16px;
-  font-size: 19px;
+/* Título do card, sem faixa: o conteúdo é a tabela, não o enfeite */
+.resultado h3 {
+  margin: 0;
+  padding: 18px 24px 14px;
+  font-size: 17px;
   font-weight: 700;
-  color: #fff;
-  text-align: left;
-}
-
-/* Números do lote, em vez de uma frase corrida */
-.metricas {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.metrica {
-  flex: 1 1 96px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 14px;
-  border-radius: var(--raio-sm);
-  background: rgba(255, 255, 255, 0.13);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-}
-
-.metrica-destaque {
-  background: var(--secundaria);
-  border-color: var(--secundaria);
   color: var(--primaria-escura);
-}
-
-.metrica-valor {
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-}
-
-.metrica-rotulo {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  opacity: 0.85;
+  text-align: left;
+  border-bottom: 1px solid var(--borda);
 }
 
 /* Tabela */
@@ -734,13 +691,18 @@ legend {
   overflow: auto;
 }
 
+/* A tabela usa uma fonte só, a da página, para não virar uma colagem de
+   tipografias. `tabular-nums` mantém os dígitos alinhados na coluna, que é o
+   que a fonte monoespaçada resolvia aqui. */
 .resultado table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   background: var(--superficie);
   margin: 0;
+  font-family: inherit;
   font-size: 14px;
+  font-variant-numeric: tabular-nums;
 }
 
 .resultado table th,
@@ -763,11 +725,6 @@ legend {
   letter-spacing: 0.3px;
   border-bottom: 2px solid var(--primaria-pastel-forte);
   cursor: help;
-}
-
-.resultado table th.mono,
-.resultado table td.mono {
-  font-family: 'Courier New', Courier, monospace;
 }
 
 /* Coluna de identificação fixa na rolagem horizontal, para não perder de vista
@@ -803,7 +760,6 @@ legend {
 .resultado table td.dias {
   font-weight: 700;
   text-align: right;
-  font-variant-numeric: tabular-nums;
   color: var(--primaria-escura);
 }
 
@@ -982,9 +938,6 @@ legend {
   .resultado .btn {
     flex: 1 1 auto;
   }
-  .metrica {
-    flex: 1 1 calc(50% - 10px);
-  }
 }
 
 @media (max-width: 480px) {
@@ -1011,7 +964,7 @@ legend {
   .destaque {
     font-size: 17px;
   }
-  .resultado-cabecalho h3 {
+  .resultado h3 {
     font-size: 21px;
   }
   .tabela-nota,

@@ -51,13 +51,20 @@ sem nenhum dos dois o resultado ganha uma coluna `linha` com o número do regist
 Os dois juntos são o caso de um paciente com mais de uma amostra, em que `patient_id` repete e
 `sample_id` distingue as linhas. Definidos em `script.js` na constante `IDENTIFICADORES`.
 
+Os dois aceitam **exatamente 4 dígitos, com os zeros à esquerda** (`0001`, não `1`), que é o formato
+com que entram na composição do barcode. Um código fora desse formato **bloqueia a conversão** e é
+listado, junto das datas inválidas: melhor parar do que gerar uma planilha com código truncado,
+que vai bater no cadastro errado. A regra está em `FORMATO_ID`.
+
 ## A tela de resultados
 
 Uma tabela com uma linha por registro e uma coluna por variável selecionada, pronta para copiar
 (separada por tabulação, para colar direto em planilha) ou baixar em CSV (separado por `;`, com BOM
 para o Excel ler os acentos). Detalhes que importam quando o lote é grande:
 
-- **Números do lote no topo**: registros, variáveis, valores gerados e células sem data.
+- **Uma fonte só na tabela**, a da página, com `tabular-nums` para os dígitos continuarem alinhados
+  na coluna. A tabela de referência no fim da página segue com a coluna `Variável` em monoespaçada,
+  onde ela ajuda a separar nome técnico de descrição.
 - **Cabeçalho fixo** na rolagem vertical e **colunas de identificação congeladas** na rolagem
   horizontal, para não se perder de quem é a linha com 15 variáveis selecionadas. Os deslocamentos das
   colunas congeladas são calculados em `fixarColunasIdent()`, porque dependem da largura real
