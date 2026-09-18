@@ -141,6 +141,7 @@ body {
   font-size: 14px;
   margin-bottom: 20px;
   color: #666;
+  text-align: justify; 
 }
 
 /* Códigos citados no texto */
