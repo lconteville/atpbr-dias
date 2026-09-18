@@ -64,6 +64,7 @@ body {
 
 /* ====== Container Principal ====== */
 .container {
+  box-sizing: border-box; /* sem isto, o padding soma ao width:100% e gera scroll horizontal */
   display: flex;
   flex-direction: column;
   align-items: center; 
@@ -444,8 +445,10 @@ legend {
   gap: 10px;
 }
 
-/* Uma variável selecionável */
-.check-option {
+/* Uma variável selecionável.
+   Qualificado com `.form label` porque a regra genérica `.form label { display: block }`
+   tem especificidade maior que uma classe sozinha e derrubava o flex daqui. */
+.form label.check-option {
   display: flex;
   align-items: flex-start;
   gap: 12px;

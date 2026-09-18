@@ -88,6 +88,18 @@ Abra o `index.html` no navegador. Não há build, dependência ou servidor.
 xdg-open index.html
 ```
 
+Publicado por GitHub Pages em <https://lconteville.github.io/atpbr-dias/>: um `git push` na `main`
+atualiza o site.
+
+## Ao alterar `script.js` ou `style.css`, incremente o `?v=`
+
+O `index.html` referencia os dois arquivos como `style.css?v=2` e `script.js?v=2`. Sem esse parâmetro,
+o navegador de quem já visitou o site reusa a versão em cache: se o HTML novo chega e o JS antigo fica,
+o script procura elementos que deixaram de existir, lança exceção e a página para de montar no meio,
+com os títulos visíveis e nenhum campo. **Incremente o número nas duas referências sempre que mexer no
+conteúdo desses arquivos**, porque só a URL mudando é que o navegador busca de novo. Enquanto a mudança
+não é publicada, `Ctrl+Shift+R` força o recarregamento sem cache.
+
 ## Contato
 
 Dúvidas ou sugestões: **lilianeconteville@gmail.com**

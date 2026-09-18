@@ -343,8 +343,11 @@ const montarSelecao = () => {
       ? '<span class="badge badge-obrigatoria">obrigatória</span>'
       : '<span class="badge badge-opcional">opcional</span>';
 
+    // O input fica aninhado no label e o label não leva "for": o aninhamento já
+    // associa os dois, e a combinação dos dois dispara o toggle duas vezes em
+    // alguns navegadores, deixando a caixa como estava.
     html += `
-      <label class="check-option" for="chk-${v.nome}">
+      <label class="check-option">
         <input type="checkbox" id="chk-${v.nome}" value="${v.nome}" data-checkvar>
         <span class="check-texto">
           <span class="var-nome">${v.nome} ${badge}</span>
