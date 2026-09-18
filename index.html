@@ -24,56 +24,71 @@
 <main class="container">
 
   <!-- ====== Aviso de privacidade ====== -->
-  <section class="card aviso">
-    <h2>🔒 Por que o ATPBR não recebe datas</h2>
-    <p>
-      A plataforma do <strong>Atlas Tumoral da População Brasileira (ATPBR)</strong>
-      <strong>não coleta nenhuma data relacionada ao paciente ou à amostra</strong>: não há campos de
-      data de nascimento, data de diagnóstico, data de coleta ou data de óbito.
-    </p>
-    <p>
-      Datas civis são identificadores indiretos. Combinadas entre si, ou com sexo, município e tipo de
-      neoplasia, elas permitem <strong>reidentificar</strong> um paciente mesmo em um conjunto de dados
-      sem nome ou prontuário. Por isso, todo evento temporal do ATPBR é registrado como
-      <strong>número de dias decorridos em relação a um marco</strong>, e não como uma data.
-    </p>
-    <p>
-      O marco principal é o <strong>diagnóstico</strong>, definido como o primeiro exame que concluiu a
-      malignidade. Ele é o <strong>dia 0</strong>. Alguns campos usam outros marcos, o
-      <strong>nascimento</strong> (para as variáveis de idade) e o <strong>início do tratamento</strong>
-      (para os intervalos livres de doença, recidiva e progressão). O intervalo em dias preserva toda a
-      informação clínica útil, sobrevida, tempo até tratamento, tempo livre de progressão, sem revelar
-      quando os eventos aconteceram no calendário.
-    </p>
+<section class="card aviso">
+  <p>
+    A plataforma do <strong>Atlas Tumoral da População Brasileira (ATPBR)</strong>
+    <strong>não armazena datas relacionadas ao paciente ou à amostra</strong>,
+    como data de nascimento, diagnóstico, coleta ou óbito.
+    Em vez disso, as informações temporais são registradas como
+    <strong>número de dias decorridos em relação a um marco clínico</strong>.
+  </p>
 
-    <h3>⚠️ Este site não armazena nada</h3>
-    <p>
-      Esta é uma página <strong>totalmente local</strong>. As datas que você digita e os resultados
-      calculados <strong>não são enviados a nenhum servidor</strong>, não são gravados em banco de dados,
-      não são registrados em log e não permanecem após o fechamento ou a atualização da aba.
-      A ferramenta apenas <strong>faz a conversão</strong>.
-    </p>
-    <p class="destaque">
-      É <strong>responsabilidade do usuário copiar os resultados</strong> antes de sair da página.
-      Use o botão de copiar ou o download do CSV. Nada é recuperável depois.
-    </p>
-    <p>
-      Recomendação: mantenha as datas de origem apenas no sistema de registro da sua instituição, sob as
-      regras locais de guarda de dados sensíveis, e leve para o ATPBR somente os valores em dias.
-    </p>
+  <p>
+    Essa abordagem reduz o risco de reidentificação, já que datas civis podem
+    atuar como identificadores indiretos quando combinadas com outras
+    informações clínicas ou sociodemográficas.
+  </p>
 
-    <h3>Contato</h3>
-    <p>
-      Para dúvidas, sugestões ou outras informações, entre em contato pelo e-mail
-      <strong>lilianeconteville@gmail.com</strong>.
-    </p>
-  </section>
+  <p>
+    O <strong>diagnóstico</strong> é o principal marco temporal do ATPBR e
+    corresponde ao <strong>dia 0</strong>, definido como a data do primeiro
+    exame que confirmou a malignidade. Algumas variáveis utilizam outros
+    marcos, como o <strong>nascimento</strong>, para o cálculo da idade ao 
+    diagnóstico, e o <strong>início do tratamento</strong>, para intervalos 
+    relacionados à doença, recidiva e progressão.
+  </p>
+
+  <p>
+    Dessa forma, a informação clínica é preservada sem que a data de
+    calendário do evento seja registrada na plataforma.
+  </p>
+</section>
+
+<section class="card aviso">
+  <h2>⚠️ Esta ferramenta não armazena dados</h2>
+
+  <p>
+    Esta é uma página <strong>totalmente local</strong>. As datas inseridas e
+    os resultados calculados <strong>não são enviados a nenhum servidor</strong>,
+    armazenados em banco de dados ou registrados em logs.
+  </p>
+
+  <p>
+    Os dados também não permanecem após o fechamento ou a atualização da página.
+    A ferramenta <strong>apenas realiza a conversão das datas em intervalos de dias</strong>.
+  </p>
+
+  <p>
+    <strong>Copie ou baixe os resultados antes de sair da página.</strong>
+    Utilize o botão de copiar ou o download do CSV, pois os resultados não
+    poderão ser recuperados posteriormente.
+  </p>
+</section>
+
+<section class="card">
+  <h2>📧 Contato</h2>
+
+  <p>
+    Para dúvidas, sugestões ou outras informações, entre em contato pelo
+    e-mail <strong>atpbr@inca.gov.br</strong>.
+  </p>
+</section>
 
   <!-- ====== Conversor ====== -->
   <section class="card">
     <h2>📅 Conversão de Datas em Dias</h2>
     <p class="example">
-      A conversão é sempre <strong>em lote</strong>: você escolhe as variáveis que quer preencher no
+      A conversão é feita <strong>em lote</strong>: você escolhe as variáveis que quer preencher no
       ATPBR e a ferramenta mostra exatamente quais colunas de data precisa ter em mãos. Cada linha
       corresponde a um paciente ou a uma amostra, e o resultado é uma tabela pronta para copiar.
     </p>
