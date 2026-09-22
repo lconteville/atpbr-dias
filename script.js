@@ -223,7 +223,7 @@ const IDENTIFICADORES = [
 // Os dois identificadores do ATPBR têm exatamente 4 dígitos, incluindo os zeros
 // à esquerda (0001, não 1), porque entram assim na composição do barcode.
 const FORMATO_ID = /^\d{4}$/;
-const AJUDA_FORMATO_ID = 'Exatamente 4 dígitos, com os zeros à esquerda: 0001, não 1.';
+const AJUDA_FORMATO_ID = 'Exatamente 4 dígitos.';
 
 /* ====== Elementos ====== */
 const form = document.getElementById('form');
@@ -246,6 +246,12 @@ const valores = {}; // chave do campo -> texto colado, preservado ao remarcar va
    As datas são tratadas como dias de calendário em UTC, para que o
    fuso horário do navegador nunca desloque a contagem em 1 dia.    */
 const MS_DIA = 86400000;
+
+// Ano acima disto está fora do que um evento clínico registrado costuma ter
+// (em geral é 2204 no lugar de 2024). Parar e pedir conferência é melhor do
+// que devolver uma contagem de dias absurda, que ninguém revê depois de colar
+// no cadastro.
+const ANO_MAXIMO = 2040;
 
 // Aceita AAAA-MM-DD e DD/MM/AAAA ou DD-MM-AAAA.
 const parseData = (texto) => {
@@ -550,7 +556,7 @@ const fixarColunasIdent = () => {
   });
 };
 
-const montarResultado = ({ titulo, cabecalhos, linhas, nota, csv, arquivo, avisos, textoCopia }) => {
+const montarResultado = ({ titulo, cabecalhos, linhas, nota, tsv, arquivo, avisos, textoCopia }) => {
   // `rotulo` vira title: com 15 colunas o nome técnico é o que cabe no cabeçalho,
   // e a descrição fica a um passar de mouse.
   const thead = `<tr>${cabecalhos.map((c) => `
@@ -582,7 +588,7 @@ const montarResultado = ({ titulo, cabecalhos, linhas, nota, csv, arquivo, aviso
 
     <div class="acoes">
       <button type="button" id="btnCopiar" class="btn btn-primario">📋 Copiar para planilha</button>
-      <button type="button" id="btnCsv" class="btn btn-secundario">📥 Baixar CSV</button>
+      <button type="button" id="btnTsv" class="btn btn-secundario">📥 Baixar TSV</button>
       <button type="button" id="btnLimpar" class="btn btn-fantasma">🧹 Limpar campos</button>
     </div>
 
@@ -607,9 +613,9 @@ const montarResultado = ({ titulo, cabecalhos, linhas, nota, csv, arquivo, aviso
     }
   });
 
-  document.getElementById('btnCsv').addEventListener('click', () => {
+  document.getElementById('btnTsv').addEventListener('click', () => {
     // BOM para o Excel reconhecer os acentos.
-    const blob = new Blob(['\ufeff' + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\ufeff' + tsv.join('\n')], { type: 'text/tab-separated-values;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = arquivo;
@@ -680,8 +686,14 @@ const converter = () => {
 
   necessarios.forEach((c) => {
     (colunas[c.chave] || []).forEach((texto, i) => {
-      if (texto && parseData(texto) === null) {
+      if (!texto) return;
+      const ts = parseData(texto);
+      if (ts === null) {
         erros.push(`"${c.titulo}", linha ${i + 1}: "${texto}" não é uma data válida (use AAAA-MM-DD ou DD/MM/AAAA).`);
+      } else if (new Date(ts).getUTCFullYear() > ANO_MAXIMO) {
+        // A mensagem não cita ANO_MAXIMO: o corte é critério nosso, e quem preenche
+        // só precisa saber qual data conferir.
+        erros.push(`"${c.titulo}", linha ${i + 1}: "${texto}" parece estar incorreta. Verifique a data informada.`);
       }
     });
   });
@@ -701,8 +713,10 @@ const converter = () => {
     : [{ titulo: 'linha', rotulo: 'Número da linha no lote', valorNa: (i) => String(i + 1) }];
 
   const nomesColunas = [...colunasId.map((c) => c.titulo), ...vars.map((v) => v.nome)];
-  const csv = [nomesColunas.join(';')];
-  const textos = [nomesColunas.join('\t')];
+  // Uma tabela só, separada por tabulação: é o que vai para o download (.tsv) e
+  // o que vai para a área de transferência. Colar em planilha cai direto em
+  // colunas, sem o assistente de importação que o separador ';' exigia.
+  const tsv = [nomesColunas.join('\t')];
   const contagem = {};
   vars.forEach((v) => { contagem[v.nome] = 0; });
 
@@ -715,7 +729,7 @@ const converter = () => {
       texto: v || '—',
       classe: v ? 'ident' : 'ident vazio'
     }));
-    const valoresCsv = [];
+    const valoresTsv = [];
 
     vars.forEach((v) => {
       const de = parseData(valorNa(chaveDe(v.de), i));
@@ -730,7 +744,7 @@ const converter = () => {
           classe: 'dias vazio',
           titulo: `Sem valor: falta ${faltando.join(' e ')} na linha ${i + 1}.`
         });
-        valoresCsv.push('');
+        valoresTsv.push('');
         return;
       }
 
@@ -749,12 +763,11 @@ const converter = () => {
         classe: dias < 0 ? 'dias negativo' : 'dias',
         titulo: v.mostrarAnos ? `≈ ${emAnos(dias)} anos` : ''
       });
-      valoresCsv.push(String(dias));
+      valoresTsv.push(String(dias));
     });
 
     linhas.push(celulas);
-    csv.push([...valoresId, ...valoresCsv].join(';'));
-    textos.push([...valoresId, ...valoresCsv].join('\t'));
+    tsv.push([...valoresId, ...valoresTsv].join('\t'));
   }
 
   // 5. Avisa sobre variáveis que ficaram sem nenhum valor.
@@ -772,10 +785,10 @@ const converter = () => {
     ],
     linhas,
     nota: 'O traço (—) marca a célula em que faltou uma das datas daquela linha. Passe o mouse sobre a célula para ver qual data falta, e sobre o nome da coluna para ver a descrição da variável.',
-    csv,
-    arquivo: 'dias_convertidos_ATPBR.csv',
+    tsv,
+    arquivo: 'dias_convertidos_ATPBR.tsv',
     avisos,
-    textoCopia: textos.join('\n')
+    textoCopia: tsv.join('\n')
   });
 };
 

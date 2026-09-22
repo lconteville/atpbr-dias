@@ -20,7 +20,7 @@ Marcos usados na plataforma:
 A página é **totalmente local**: não faz requisição de rede, não usa cookie, `localStorage` ou
 `sessionStorage`. **Nenhuma data digitada e nenhum resultado calculado é armazenado ou transmitido.**
 A ferramenta apenas faz a conversão, e é **responsabilidade do usuário copiar os resultados** (botão de
-copiar ou download do CSV) antes de recarregar ou fechar a aba.
+copiar ou download do TSV) antes de recarregar ou fechar a aba.
 
 ## Como funciona
 
@@ -59,7 +59,7 @@ que vai bater no cadastro errado. A regra está em `FORMATO_ID`.
 ## A tela de resultados
 
 Uma tabela com uma linha por registro e uma coluna por variável selecionada, pronta para copiar
-(separada por tabulação, para colar direto em planilha) ou baixar em CSV (separado por `;`, com BOM
+(separada por tabulação, para colar direto em planilha) ou baixar em TSV (o mesmo conteúdo, com BOM
 para o Excel ler os acentos). Detalhes que importam quando o lote é grande:
 
 - **Uma fonte só na tabela**, a da página, com `tabular-nums` para os dígitos continuarem alinhados
@@ -80,6 +80,9 @@ secundária `#6dc8a9`), declaradas como variáveis CSS no topo de `style.css`.
 
 - Texto que não é uma data válida (`31/02/2024`, por exemplo) **bloqueia a conversão** e é listado, para
   que um erro de digitação nunca passe como célula em branco.
+- Data posterior a **2040** também bloqueia: a data existe no calendário, mas está fora do comum para
+  um evento já registrado (em geral é `2204` no lugar de `2024`), então a ferramenta para e pede
+  conferência em vez de calcular. O limite está em `ANO_MAXIMO`.
 - Valores negativos são calculados e exibidos, mas sempre acompanhados de aviso, porque indicam evento
   anterior ao marco. Nas variáveis de idade e de duração, que não admitem negativo, o aviso é explícito.
 
